@@ -1,12 +1,12 @@
 import os
+import time
 import pickle
 import logging
-import pandas as pd
 import sentencepiece as spm
 # Import Huggingface
 from transformers import BertTokenizer
 # Import custom modules
-from utils import encoding_text, TqdmLoggingHandler, write_log
+from utils import TqdmLoggingHandler, write_log
 
 def preprocessing(args):
 
@@ -71,7 +71,7 @@ def preprocessing(args):
         f'--input={args.preprocess_path}/src.txt --model_prefix={args.preprocess_path}/m_src_{args.src_vocab_size} '
         f'--vocab_size={args.src_vocab_size} --character_coverage=0.9995 --split_by_whitespace=true '
         f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
-        f'--model_type={args.sentencepiece_model} --max_sentence_length=10000000')
+        f'--model_type={args.sentencepiece_model}')
 
     src_vocab = list()
     with open(f'{args.preprocess_path}/m_src_{args.src_vocab_size}.vocab') as f:
@@ -129,7 +129,7 @@ def preprocessing(args):
         [args.bos_id] + spm_trg.encode(text, out_type=int) + [args.eos_id] for text in test_trg_sequences
     )
 
-    print(f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
+    write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
 
     #===================================#
     #==============Saving===============#
@@ -138,7 +138,8 @@ def preprocessing(args):
     print('Parsed sentence save setting...')
     start_time = time.time()
 
-    with open(os.path.join(args.preprocess_path, 'processed.pkl'), 'wb') as f:
+    save_name = f'processed_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+    with open(os.path.join(args.preprocess_path, save_name), 'wb') as f:
         pickle.dump({
             'train_src_indices': train_src_indices,
             'valid_src_indices': valid_src_indices,
@@ -148,7 +149,7 @@ def preprocessing(args):
             'trg_word2id': trg_word2id
         }, f)
 
-    with open(os.path.join(args.preprocess_path, 'test_processed.pkl'), 'wb') as f:
+    with open(os.path.join(args.preprocess_path, 'test_' + save_name), 'wb') as f:
         pickle.dump({
             'test_src_indices': test_src_indices,
             'test_trg_indices': test_trg_indices,

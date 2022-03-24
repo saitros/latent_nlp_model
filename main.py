@@ -1,8 +1,8 @@
 # Import modules
 import time
 import argparse
-# Training
-
+# Import custom modules
+from preprocessing import preprocessing
 # Utils
 from utils import str2bool
 
@@ -10,23 +10,14 @@ def main(args):
     # Time setting
     total_start_time = time.time()
 
-    if args.model == 'ViT':
-        if args.training:
-            vit_training(args)
-        # if args.testing:
-        #     vit_testing(args)
+    if args.preprocessing:
+        preprocessing(args)
 
-    if args.model == 'Captioning':
-        if args.training:
-            captioning_training(args)
-        if args.testing:
-            captioning_testing(args)
+    if args.training:
+        training(args)
 
-    if args.model == 'TransGAN':
-        if args.training:
-            transgan_training(args)
-    #     if args.testing:
-    #         transgan_testing(args)
+    if args.testing:
+        testing(args)
 
     # Time calculate
     print(f'Done! ; {round((time.time()-total_start_time)/60, 3)}min spend')
@@ -34,50 +25,32 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    parser.add_argument('--model', default='Captioning' ,type=str, choices=['ViT', 'Captioning', 'TransGAN'], # default='Captioning' --> default="TransGAN"
-                        help="Choose model in 'ViT', 'Captioning', 'TransGAN'")
-    parser.add_argument('--training', action='store_true') # default='True' --> ''
+    parser.add_argument('--preprocessing', action='store_true')
+    parser.add_argument('--training', action='store_true')
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
     # Path setting
-    parser.add_argument('--vit_preprocess_path', default='./preprocessing', type=str,
+    parser.add_argument('--preprocess_path', default='./preprocessing', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--vit_data_path', default='/HDD/dataset/imagenet/ILSVRC', type=str,
+    parser.add_argument('--data_path', default='HDD/dataset/WMT/2016/multi_modal', type=str,
                         help='Original data path')
-    parser.add_argument('--vit_save_path', default='/HDD/kyohoon/model_checkpoint/vit/', type=str,
+    parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/vit/', type=str,
                         help='Model checkpoint file path')
-    parser.add_argument('--captioning_preprocess_path', default='./preprocessing', type=str,
-                        help='Pre-processed data save path')
-    parser.add_argument('--captioning_data_path', default='/HDD/dataset/coco', type=str,
-                        help='Original data path')
-    parser.add_argument('--captioning_save_path', default='/HDD/kyohoon/model_checkpoint/captioning/', type=str,
-                        help='Model checkpoint file path')
-    parser.add_argument('--transgan_preprocess_path', default='./preprocessing', type=str,
-                        help='Pre-processed data save path')
-    parser.add_argument('--transgan_data_path', default='/HDD/dataset/celeba', type=str,
-                        help='Original data path')
-    parser.add_argument('--transgan_save_path', default='./testing_img', type=str,
-                        help='Model checkpoint file path')
-    # Data setting
-    parser.add_argument('--img_size', default=256, type=int,
-                        help='Image resize size; Default is 256')
-    parser.add_argument('--vocab_size', default=8000, type=int,
-                        help='Caption vocabulary size; Default is 8000')
+    # Preprocessing setting
+    parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
+                        help="Google's SentencePiece model type; Default is unigram")
+    parser.add_argument('--src_vocab_size', default=8000, type=int,
+                        help='Source text vocabulary size; Default is 8000')
+    parser.add_argument('--trg_vocab_size', default=8000, type=int,
+                        help='Source text vocabulary size; Default is 8000')
     parser.add_argument('--pad_id', default=0, type=int,
                         help='Padding token index; Default is 0')
     parser.add_argument('--unk_id', default=3, type=int,
                         help='Unknown token index; Default is 3')
     parser.add_argument('--bos_id', default=1, type=int,
-                        help='Start token index; Default is 1')
+                        help='Padding token index; Default is 1')
     parser.add_argument('--eos_id', default=2, type=int,
-                        help='End token index; Default is 2')
-    parser.add_argument('--min_len', default=4, type=int,
-                        help='Minimum length of caption; Default is 4')
-    parser.add_argument('--max_len', default=300, type=int,
-                        help='Maximum length of caption; Default is 300')
-    parser.add_argument('--sentencepiece_model', default='bpe', type=str,
-                        help='Sentencepiece model type')   # Add argument for captioning
-
+                        help='Padding token index; Default is 2')
     # Model setting
     # 1) Common
     parser.add_argument('--triple_patch', default=False, type=str2bool,
