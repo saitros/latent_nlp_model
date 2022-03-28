@@ -1,10 +1,10 @@
 # Import modules
+import os
 import sys
 import tqdm
 import logging
 import argparse
 # Import PyTorch
-import torch
 import torch.nn.functional as F
 
 def str2bool(v): 
@@ -17,19 +17,12 @@ def str2bool(v):
     else: 
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
-    ''' Calculate cross entropy loss, apply label smoothing if needed. '''
-    gold = gold.contiguous().view(-1)
-    n_class = pred.size(1)
+def path_check(args):
+    if not os.path.exists(args.preprocess_path):
+        os.mkdir(args.preprocess_path)
 
-    one_hot = torch.zeros_like(pred).scatter(1, gold.view(-1, 1), 1)
-    one_hot = one_hot * (1 - smoothing_eps) + (1 - one_hot) * smoothing_eps / (n_class - 1)
-    log_prb = F.log_softmax(pred, dim=1)
-
-    non_pad_mask = gold.ne(trg_pad_idx)
-    loss = -(one_hot * log_prb).sum(dim=1)
-    loss = loss.masked_select(non_pad_mask).mean()
-    return loss
+    if not os.path.exists(args.save_path):
+        os.mkdir(args.save_path)
 
 class TqdmLoggingHandler(logging.Handler):
     def __init__(self, level=logging.DEBUG):

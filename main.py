@@ -2,13 +2,18 @@
 import time
 import argparse
 # Import custom modules
-from preprocessing import preprocessing
+from task.preprocessing import preprocessing
+from task.train import training
+from task.test import testing
 # Utils
-from utils import str2bool
+from utils import str2bool, path_check
 
 def main(args):
     # Time setting
     total_start_time = time.time()
+
+    # Path setting
+    path_check(args)
 
     if args.preprocessing:
         preprocessing(args)
@@ -32,9 +37,9 @@ if __name__=='__main__':
     # Path setting
     parser.add_argument('--preprocess_path', default='./preprocessing', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='HDD/dataset/WMT/2016/multi_modal', type=str,
+    parser.add_argument('--data_path', default='/HDD/dataset/WMT/2016/multi_modal', type=str,
                         help='Original data path')
-    parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/vit/', type=str,
+    parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     # Preprocessing setting
     parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
@@ -53,10 +58,6 @@ if __name__=='__main__':
                         help='Padding token index; Default is 2')
     # Model setting
     # 1) Common
-    parser.add_argument('--triple_patch', default=False, type=str2bool,
-                        help='Triple patch testing; Default is False')
-    parser.add_argument('--patch_size', default=32, type=int, 
-                        help='ViT patch size; Default is 32')
     parser.add_argument('--d_model', default=768, type=int, 
                         help='Transformer model dimension; Default is 768')
     parser.add_argument('--d_embedding', default=256, type=int, 
@@ -70,21 +71,28 @@ if __name__=='__main__':
     parser.add_argument('--embedding_dropout', default=0.1, type=float, 
                         help="Embedding dropout ration; Default is 0.1")
     parser.add_argument('--num_encoder_layer', default=6, type=int, 
-                        help="Number of encoder layers; Default is 12")
+                        help="Number of encoder layers; Default is 6")
     parser.add_argument('--num_decoder_layer', default=6, type=int, 
-                        help="Number of decoder layers; Default is 12")
-    # 2) Captioning Only
+                        help="Number of decoder layers; Default is 6")
+    parser.add_argument('--min_len', default=4, type=int, 
+                        help="Sentences's minimum length; Default is 4")
+    parser.add_argument('--src_max_len', default=300, type=int, 
+                        help="Source sentences's maximum length; Default is 300")
+    parser.add_argument('--trg_max_len', default=300, type=int, 
+                        help="Target sentences's maximum length; Default is 300")
+    # 2) Experimental Transformer
+    parser.add_argument('--trg_emb_prj_weight_sharing', default=False, type=str2bool,
+                        help='Weight sharing between decoder embedding and decoder linear; Default is False')
+    parser.add_argument('--emb_src_trg_weight_sharing', default=False, type=str2bool,
+                        help='Weight sharing between encoder embedding and decoder embedding; Default is False')
+    parser.add_argument('--variational', default=False, type=str2bool,
+                        help='Variational transformer mode; Default is False')
+    parser.add_argument('--d_latent', default=128, type=int, 
+                        help='Latent variable dimension; Default is 128')
     parser.add_argument('--parallel', default=False, type=str2bool,
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
-    # 3) TransGAN Only
-    parser.add_argument('--latent_dim', default=256, type=int,
-                        help='')
-    parser.add_argument('--gan_loss', default='wgangp-eps', type=str,
-                        help='GAN loss setting; Default is wgangp-eps')
-    parser.add_argument('--bottom_width', type=int, default=4,
-                        help='')
-    parser.add_argument('--phi', default=1, type=int,
-                        help='')
+    parser.add_argument('--num_common_layer', default=6, type=int, 
+                        help="Number of common layers; Default is 6")
     # Optimizer & LR_Scheduler setting
     optim_list = ['AdamW', 'Adam', 'SGD', 'Ralamb']
     scheduler_list = ['constant', 'warmup', 'reduce_train', 'reduce_valid', 'lambda']

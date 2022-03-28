@@ -7,6 +7,7 @@ from torch.nn import functional as F
 from torch.nn.modules.activation import MultiheadAttention
 # Import custom modules
 from .embedding import TransformerEmbedding
+from .loss import GaussianKLLoss
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_num, trg_vocab_num, pad_idx=0, bos_idx=1, eos_idx=2, 
@@ -31,9 +32,6 @@ class Transformer(nn.Module):
             self.num_common_layer = num_common_layer
             self.num_encoder_nonparallel = num_encoder_layer - num_common_layer
 
-        # Variational model setting
-        self.variational = variational
-
         # Dropout setting
         self.dropout = nn.Dropout(dropout)
 
@@ -44,6 +42,17 @@ class Transformer(nn.Module):
         # Target embedding part
         self.trg_embedding = TransformerEmbedding(trg_vocab_num, d_model, d_embedding,
             pad_idx=self.pad_idx, max_len=self.trg_max_len, dropout=embedding_dropout)
+
+        # Variational model setting
+        self.variational = variational
+        if self.variational:
+            self.context_to_mu = nn.Linear(d_model, d_latent)
+            self.context_to_logvar = nn.Linear(d_model, d_latent)
+            self.mu_to_context = nn.Linear(d_latent, d_model)
+            self.logvar_to_context = nn.Linear(d_latent, d_model)
+
+            self.kl_criterion = GaussianKLLoss()
+            self.latent_to_decoder = nn.Linear(d_model*2, d_model)
 
         # Transformer Encoder part
         self_attn = MultiheadAttention(d_model, n_head, dropout=dropout)
@@ -57,10 +66,6 @@ class Transformer(nn.Module):
         self.decoders = nn.ModuleList([
             TransformerDecoderLayer(d_model, self_attn, decoder_mask_attn,
                 dim_feedforward, dropout=dropout) for i in range(num_decoder_layer)])
-
-        # Variational part
-        self.context_to_mu = nn.Linear(d_model, d_latent)
-        self.context_to_logvar = nn.Linear(d_model, d_latent)
 
         # Target linear part
         self.trg_output_linear = nn.Linear(d_model, d_embedding)
@@ -119,6 +124,31 @@ class Transformer(nn.Module):
             for encoder in self.encoders:
                 encoder_out = encoder(encoder_out, src_key_padding_mask=src_key_padding_mask)
 
+            if self.variational:
+                # Source sentence latent mapping
+                src_mu = self.context_to_mu(encoder_out)
+                src_logvar = self.context_to_logvar(encoder_out)
+                # Target sentence latent mapping
+                with torch.no_grad():
+                    for encoder in self.encoders:
+                        encoder_out_trg = encoder(decoder_out, src_key_padding_mask=tgt_key_padding_mask)
+                trg_mu = self.context_to_mu(encoder_out_trg)
+                trg_logvar = self.context_to_logvar(encoder_out_trg)
+
+                kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar)
+
+                mu = self.mu_to_context(src_mu)
+                logvar = self.logvar_to_context(src_logvar)
+
+                std = logvar.mul(0.5).exp_()
+                eps = Variable(std.data.new(std.size()).normal_())
+                z = eps.mul(std).add_(mu)
+
+                decoder_out = torch.cat([decoder_out, z], dim=2)
+                decoder_out = self.latent_to_decoder(decoder_out)
+            else:
+                kl = 0
+
             # Decoder
             for decoder in self.decoders:
                 decoder_out = decoder(decoder_out, encoder_out, tgt_mask=tgt_mask,
@@ -131,14 +161,13 @@ class Transformer(nn.Module):
         decoder_out = self.trg_output_norm(self.dropout(F.gelu(self.trg_output_linear(decoder_out))))
         decoder_out = self.trg_output_linear2(decoder_out)
         decoder_out = decoder_out * self.x_logit_scale
-        return decoder_out
+        return decoder_out, kl
 
     @staticmethod
     def generate_square_subsequent_mask(sz, device):
         mask = torch.tril(torch.ones(sz, sz, dtype=torch.float, device=device))
         mask = mask.masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, 0.0)
         return mask
-
 
 class TransformerEncoderLayer(nn.Module):
     def __init__(self, d_model, self_attn, dim_feedforward=2048, dropout=0.1):
@@ -164,7 +193,6 @@ class TransformerEncoderLayer(nn.Module):
         src = src + self.dropout2(src2)
         src = self.norm2(src)
         return src
-
 
 class TransformerDecoderLayer(nn.Module):
     def __init__(self, d_model, self_attn, mask_attn, dim_feedforward=2048, dropout=0.1):

@@ -14,8 +14,9 @@ from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
 from model.transformer.dataset import CustomDataset
 from model.transformer.transformer import Transformer
+from model.transformer.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
-from utils import label_smoothing_loss, TqdmLoggingHandler, write_log
+from utils import TqdmLoggingHandler, write_log
 
 def training(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,7 +41,8 @@ def training(args):
     # 1) Data open
     write_log(logger, "Load data...")
     gc.disable()
-    with open(os.path.join(args.preprocess_path, 'processed.pkl'), 'rb') as f:
+    save_name = f'processed_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+    with open(os.path.join(args.preprocess_path, save_name), 'rb') as f:
         data_ = pickle.load(f)
         train_src_indices = data_['train_src_indices']
         valid_src_indices = data_['valid_src_indices']
@@ -87,10 +89,10 @@ def training(args):
                         dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                         trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                         emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                        parallel=args.parallel)
+                        variational=args.variational, parallel=args.parallel)
     model.train()
     model = model.to(device)
-    tgt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
+    tgt_mask = model.generate_square_subsequent_mask(args.trg_max_len, device)
 
     # 2) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)
@@ -136,20 +138,20 @@ def training(args):
                 src = src.to(device, non_blocking=True)
                 trg = trg.to(device, non_blocking=True)
 
-                trg_sequences_target = trg[:, 1:]
-                non_pad = trg_sequences_target != args.pad_id
-                trg_sequences_target = trg_sequences_target[non_pad].contiguous().view(-1)
+                non_pad = trg != args.pad_id
+                trg_sequences_target = trg[non_pad].contiguous().view(-1)
 
                 # Train
                 if phase == 'train':
 
                     with autocast():
-                        predicted = model(
-                            src, trg[:, :-1], tgt_mask, non_pad_position=non_pad)
+                        predicted, kl = model(
+                            src, trg, tgt_mask, non_pad_position=non_pad)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        loss = label_smoothing_loss(predicted, trg_sequences_target)
+                        nmt_loss = label_smoothing_loss(predicted, trg_sequences_target, trg_pad_idx=args.pad_id)
+                        total_loss = nmt_loss + kl
 
-                    scaler.scale(loss).backward()
+                    scaler.scale(total_loss).backward()
                     if args.clip_grad_norm > 0:
                         scaler.unscale_(optimizer)
                         clip_grad_norm_(model.parameters(), args.clip_grad_norm)
@@ -159,14 +161,14 @@ def training(args):
                     if args.scheduler in ['constant', 'warmup']:
                         scheduler.step()
                     if args.scheduler == 'reduce_train':
-                        scheduler.step(loss)
+                        scheduler.step(nmt_loss)
 
                     # Print loss value only training
                     if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
                         acc = (predicted.max(dim=1)[1] == trg_sequences_target).sum() / len(trg_sequences_target)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.3f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
-                            loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
+                            total_loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
                             (time() - start_time_e) / 60)
                         write_log(logger, iter_log)
                         freq = 0
@@ -175,9 +177,10 @@ def training(args):
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
-                        predicted = model(src, trg[:, :-1], tgt_mask, non_pad_position=non_pad)
-                        loss = F.cross_entropy(predicted, trg_sequences_target)
-                    val_loss += loss.item()
+                        predicted, kl = model(src, trg, tgt_mask, non_pad_position=non_pad)
+                        nmt_loss = F.cross_entropy(predicted, trg_sequences_target)
+                        total_loss = nmt_loss + kl
+                    val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequences_target).sum() / len(trg_sequences_target)
                     if args.scheduler == 'reduce_valid':
                         scheduler.step(val_loss)
