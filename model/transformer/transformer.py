@@ -1,7 +1,6 @@
 # Import PyTorch
 import torch
 from torch import nn
-from torch.cuda.amp import autocast
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn.modules.activation import MultiheadAttention
@@ -178,12 +177,11 @@ class TransformerEncoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
 
-        self.norm1 = nn.LayerNorm(d_model, eps=1e-6)
-        self.norm2 = nn.LayerNorm(d_model, eps=1e-6)
+        self.norm1 = nn.LayerNorm(d_model, eps=1e-12)
+        self.norm2 = nn.LayerNorm(d_model, eps=1e-12)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-    @autocast()
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
         src2 = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=src_key_padding_mask)[0]
@@ -204,14 +202,13 @@ class TransformerDecoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
 
-        self.norm1 = nn.LayerNorm(d_model, eps=1e-6)
-        self.norm2 = nn.LayerNorm(d_model, eps=1e-6)
-        self.norm3 = nn.LayerNorm(d_model, eps=1e-6)
+        self.norm1 = nn.LayerNorm(d_model, eps=1e-12)
+        self.norm2 = nn.LayerNorm(d_model, eps=1e-12)
+        self.norm3 = nn.LayerNorm(d_model, eps=1e-12)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
         self.dropout3 = nn.Dropout(dropout)
 
-    @autocast()
     def forward(self, tgt, memory, tgt_mask=None, memory_mask=None,
                 tgt_key_padding_mask=None, memory_key_padding_mask=None):
 

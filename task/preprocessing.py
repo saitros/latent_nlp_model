@@ -31,6 +31,12 @@ def preprocessing(args):
 
     dataset_dict = dict()
 
+    if args.data_name == 'WMT2016_Multimodal':
+        args.data_path = os.path.join(args.data_path,'2016/multi_modal')
+        
+    elif args.data_name == 'WMT2014_de_en':
+        args.data_path = os.path.join(args.data_path,'2014/de_en')
+
     # 1) Train data load
     with open(os.path.join(args.data_path, 'train.de'), 'r') as f:
         train_src_sequences = [x.replace('\n', '') for x in f.readlines()]

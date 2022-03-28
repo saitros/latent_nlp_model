@@ -1,6 +1,8 @@
 # Import modules
 import time
 import argparse
+
+import defusedxml
 # Import custom modules
 from task.preprocessing import preprocessing
 from task.train import training
@@ -37,8 +39,10 @@ if __name__=='__main__':
     # Path setting
     parser.add_argument('--preprocess_path', default='./preprocessing', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='/HDD/dataset/WMT/2016/multi_modal', type=str,
+    parser.add_argument('--data_path', default='/HDD/dataset/WMT', type=str,
                         help='Original data path')
+    parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
+                        help='Data name; Default is WMT2016_Multimodal')
     parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     # Preprocessing setting
