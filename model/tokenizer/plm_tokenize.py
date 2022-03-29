@@ -1,6 +1,6 @@
 from transformers import BertTokenizer, BartTokenizer, T5Tokenizer
 
-def PLM_tokenizeing(src_sequences, trg_sequences, args):
+def plm_tokenizeing(src_sequences, trg_sequences, args):
     processed_src, processed_trg, word2id = dict(), dict(), dict()
 
     if args.tokenizer == 'bert':

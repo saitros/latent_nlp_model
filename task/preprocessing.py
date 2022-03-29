@@ -4,6 +4,7 @@ import pickle
 import logging
 # Import custom modules
 from model.tokenizer.spm_tokenize import spm_tokenizing
+from model.tokenizer.plm_tokenize import plm_tokenizeing
 from utils import TqdmLoggingHandler, write_log
 
 def preprocessing(args):
@@ -63,10 +64,8 @@ def preprocessing(args):
 
     if args.tokenizer == 'spm':
         processed_src, processed_trg, word2id = spm_tokenizing(src_sequences, trg_sequences, args)
-    if args.tokenizer == 'bert':
-        processed_src, processed_trg, word2id = spm_tokenizing(src_sequences, trg_sequences, args)
-    if args.tokenizer == 'bart':
-        processed_src, processed_trg, word2id = spm_tokenizing(src_sequences, trg_sequences, args)
+    else:
+        processed_src, processed_trg, word2id = plm_tokenizeing(src_sequences, trg_sequences, args)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
 
