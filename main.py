@@ -46,6 +46,9 @@ if __name__=='__main__':
     parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     # Preprocessing setting
+    parser.add_argument('--tokenizer', default='sentencepiece', choices=[
+        'sentencepiece', 'bert', 'bart', 'T5'
+    ], help='Tokenizer select; Default is sentencepiece')
     parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
                         help="Google's SentencePiece model type; Default is unigram")
     parser.add_argument('--src_vocab_size', default=8000, type=int,
