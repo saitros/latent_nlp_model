@@ -59,7 +59,7 @@ def preprocessing(args):
     #==========Pre-processing===========#
     #===================================#
 
-    print('SentencePiece Training')
+    write_log(logger, 'Tokenizer setting...')
     start_time = time.time()
 
     if args.tokenizer == 'spm':
@@ -73,11 +73,20 @@ def preprocessing(args):
     #==============Saving===============#
     #===================================#
 
-    print('Parsed sentence save setting...')
+    write_log(logger, 'Parsed sentence saving...')
     start_time = time.time()
 
-    save_name = f'processed_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
-    with open(os.path.join(args.preprocess_path, save_name), 'wb') as f:
+    # Path checking
+    save_path = os.path.join(args.preprocess_path, args.tokenizer)
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+
+    if args.tokenizer == 'spm':
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+    else:
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.pkl'
+
+    with open(os.path.join(save_path, save_name), 'wb') as f:
         pickle.dump({
             'train_src_indices': processed_src['train'],
             'valid_src_indices': processed_src['valid'],
@@ -87,7 +96,7 @@ def preprocessing(args):
             'trg_word2id': word2id['trg']
         }, f)
 
-    with open(os.path.join(args.preprocess_path, 'test_' + save_name), 'wb') as f:
+    with open(os.path.join(save_path, 'test_' + save_name), 'wb') as f:
         pickle.dump({
             'test_src_indices': processed_src['test'],
             'test_trg_indices': processed_src['test'],
@@ -95,4 +104,4 @@ def preprocessing(args):
             'trg_word2id': word2id['trg']
         }, f)
 
-    print(f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
+    write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')

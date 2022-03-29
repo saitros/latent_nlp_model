@@ -64,7 +64,7 @@ if __name__=='__main__':
     parser.add_argument('--eos_id', default=2, type=int,
                         help='Padding token index; Default is 2')
     # Model setting
-    # 1) Common
+    # 1) Custom Transformer
     parser.add_argument('--d_model', default=768, type=int, 
                         help='Transformer model dimension; Default is 768')
     parser.add_argument('--d_embedding', default=256, type=int, 
@@ -87,19 +87,21 @@ if __name__=='__main__':
                         help="Source sentences's maximum length; Default is 300")
     parser.add_argument('--trg_max_len', default=300, type=int, 
                         help="Target sentences's maximum length; Default is 300")
-    # 2) Experimental Transformer
     parser.add_argument('--trg_emb_prj_weight_sharing', default=False, type=str2bool,
                         help='Weight sharing between decoder embedding and decoder linear; Default is False')
     parser.add_argument('--emb_src_trg_weight_sharing', default=False, type=str2bool,
                         help='Weight sharing between encoder embedding and decoder embedding; Default is False')
-    parser.add_argument('--variational', default=False, type=str2bool,
-                        help='Variational transformer mode; Default is False')
-    parser.add_argument('--d_latent', default=128, type=int, 
-                        help='Latent variable dimension; Default is 128')
     parser.add_argument('--parallel', default=False, type=str2bool,
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
     parser.add_argument('--num_common_layer', default=6, type=int, 
                         help="Number of common layers; Default is 6")
+    # 2) Pre-trained Language Model
+    parser.add_argument('--plm_model',)
+    # 3) Variational model
+    parser.add_argument('--variational', default=False, type=str2bool,
+                        help='Variational transformer mode; Default is False')
+    parser.add_argument('--d_latent', default=128, type=int, 
+                        help='Latent variable dimension; Default is 128')
     # Optimizer & LR_Scheduler setting
     optim_list = ['AdamW', 'Adam', 'SGD', 'Ralamb']
     scheduler_list = ['constant', 'warmup', 'reduce_train', 'reduce_valid', 'lambda']

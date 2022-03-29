@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
-from model.transformer.dataset import CustomDataset
-from model.transformer.transformer import Transformer
-from model.transformer.loss import label_smoothing_loss
+from model.dataset import CustomDataset
+from model.custom_transformer.transformer import Transformer
+from model.custom_transformer.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
 

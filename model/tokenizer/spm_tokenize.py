@@ -30,17 +30,29 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     spm_src = spm.SentencePieceProcessor()
     spm_src.Load(f'{args.preprocess_path}/m_src_{args.src_vocab_size}.model')
 
-    processed_src['train'] = tuple(
+    processed_src['train']['input_ids'] = tuple(
         [args.bos_id] + spm_src.encode(
                             text, enable_sampling=True, alpha=0.1, nbest_size=-1, out_type=int) + \
         [args.eos_id] for text in train_src_sequences
     )
-    processed_src['valid'] = tuple(
+    processed_src['valid']['input_ids'] = tuple(
         [args.bos_id] + spm_src.encode(text, out_type=int) + [args.eos_id] for text in valid_src_sequences
     )
-    processed_src['test'] = tuple(
+    processed_src['test']['input_ids'] = tuple(
         [args.bos_id] + spm_src.encode(text, out_type=int) + [args.eos_id] for text in test_src_sequences
     )
+
+    # Attention mask encoding
+    processed_src['train']['attention_mask'] = list()
+    processed_src['valid']['attention_mask'] = list()
+    processed_src['test']['attention_mask'] = list()
+
+    for ind in processed_src['train']['input_ids']:
+        processed_src['train']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(args.src_max_len)])
+    for ind in processed_src['valid']['input_ids']:
+        processed_src['valid']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(args.src_max_len)])
+    for ind in processed_src['test']['input_ids']:
+        processed_src['test']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(args.src_max_len)])
 
     # 2) Target lanugage
     # Split to train, valid, test
@@ -80,5 +92,18 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     processed_trg['test'] = tuple(
         [args.bos_id] + spm_trg.encode(text, out_type=int) + [args.eos_id] for text in test_trg_sequences
     )
+
+    # Attention mask encoding
+    processed_trg['train']['attention_mask'] = list()
+    processed_trg['valid']['attention_mask'] = list()
+    processed_trg['test']['attention_mask'] = list()
+
+    for ind in processed_trg['train']['input_ids']:
+        processed_trg['train']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(args.trg_max_len)])
+    for ind in processed_trg['valid']['input_ids']:
+        processed_trg['valid']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(args.trg_max_len)])
+    for ind in processed_trg['test']['input_ids']:
+        processed_trg['test']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(args.trg_max_len)])
+
 
     return processed_src, processed_trg, word2id
