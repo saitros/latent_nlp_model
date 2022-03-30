@@ -69,10 +69,10 @@ def training(args):
     # 2) Dataloader setting
     dataset_dict = {
         'train': CustomDataset(src_list=train_src_indices, trg_list=train_trg_indices, 
-                            src_att=train_src_att_mask, trg_att=train_trg_indices,
+                            src_att_mask_list=train_src_att_mask, trg_att_mask_list=train_trg_indices,
                             min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
         'valid': CustomDataset(src_list=valid_src_indices, trg_list=valid_trg_indices,
-                            src_att=valid_src_att_mask, trg_att=valid_trg_indices,
+                            src_att_mask_list=valid_src_att_mask, trg_att_mask_list=valid_trg_indices,
                             min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
     }
     dataloader_dict = {

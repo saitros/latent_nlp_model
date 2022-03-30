@@ -9,7 +9,7 @@ from transformers import T5ForConditionalGeneration, T5EncoderModel, T5Config, T
 from transformers import BartTokenizerFast, BartForConditionalGeneration, BartConfig
 
 class Pretrained_Transformer(nn.Module):
-    def __init__(self, model_type, isPreTrain, d_latent, device):
+    def __init__(self, model_type, isPreTrain, d_latent):
         super().__init__()
 
         """
@@ -28,37 +28,101 @@ class Pretrained_Transformer(nn.Module):
         self.d_latent = d_latent
         self.model_type = model_type
         self.isPreTrain = isPreTrain
-        self.device = device
-        self.decoder_type = decoder_type
 
         if self.model_type == 'T5':
             if self.isPreTrain:
                 self.model = T5ForConditionalGeneration.from_pretrained('t5-small')
             else:
-                model_config = T5Config("t5-small")
+                model_config = T5Config.from_pretrained('t5-small')
                 self.model = T5ForConditionalGeneration(config=model_config)
 
             # Encoder1 Setting
-            self.encoder_embedding = self.model.encoder.embed_tokens
-            self.encoder_model = self.model.encoder.block
-            self.encoder_final_layer_norm = self.model.encoder.final_layer_norm
-            self.encoder_dropout = self.model.encoder.dropout
+            self.encoder1_embedding = self.model1.encoder.embed_tokens
+            self.encoder1_model = self.model1.encoder.block
+            self.encoder1_final_layer_norm = self.model1.encoder.final_layer_norm
+            self.encoder1_dropout = self.model1.encoder.dropout
+            # Dimension Setting
+            self.d_hidden = self.encoder1_embedding.embedding_dim
+            # Encoder2 Setting
+            self.encoder2_model = self.model2.get_encoder()
+            # Decoder Setting
+            self.decoder_model = self.model2.get_decoder()
+            # Final Layer Setting
+            self.vocab_size = self.model2.lm_head.out_features
+            self.lm_head = self.model2.lm_head
 
         elif self.model_type == 'bart':
             if self.isPreTrain:
                 self.model = BartForConditionalGeneration.from_pretrained('facebook/bart-base')
             else:
-                model_config = BartConfig('facebook/bart-base')
+                model_config = BartConfig.from_pretrained("facebook/bart-base")
                 self.model = BartForConditionalGeneration(config=model_config)
 
+            # Encoder Setting
+            self.encoder_model = self.model.get_encoder()
+            # Dimension Setting
+            self.d_hidden = self.encoder_model.embed_tokens.embedding_dim
+            # Decoder Setting
+            self.decoder_model = self.model.get_decoder()
+            # Final Layer Setting
+            self.vocab_size = self.model.lm_head.out_features
+            self.lm_head = self.model.lm_head
 
-    def forward(self, input_ids, attention_mask):
+
+    def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask):
+
+    #===================================#
+    #===============Bart================#
+    #===================================#
+
+        if self.model_type == 'Bart':
+
+            # Encoder Forward
+            src_encoder_out = self.encoder_model(input_ids=src_input_ids,
+                                             attention_mask=src_attention_mask)
+            src_encoder_out = src_encoder_out['last_hidden_state']
+
+            if self.variational:
+                # Source sentence latent mapping
+                src_mu = self.context_to_mu(src_encoder_out)
+                src_logvar = self.context_to_logvar(src_encoder_out)
+                # Target sentence latent mapping
+                with torch.no_grad():
+                    trg_encoder_out = self.encoder_model(input_ids=trg_input_ids,
+                                                    attention_mask=trg_attention_mask)
+                    trg_encoder_out = trg_encoder_out['last_hidden_state']
+
+                trg_mu = self.context_to_mu(trg_encoder_out)
+                trg_logvar = self.context_to_logvar(trg_encoder_out)
+
+                kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar)
+
+                mu = self.mu_to_context(src_mu)
+                logvar = self.logvar_to_context(src_logvar)
+
+                std = logvar.mul(0.5).exp_()
+                eps = Variable(std.data.new(std.size()).normal_())
+                z = eps.mul(std).add_(mu)
+
+                decoder_out = torch.cat([decoder_out, z], dim=2)
+                decoder_out = self.latent_to_decoder(decoder_out)
+            else:
+                kl = 0
+
+            # Decoder
+            model_out = self.decoder_model(inputs_embeds=wae_enc_out, 
+                                           attention_mask=attention_mask,
+                                           encoder_hidden_states=wae_dec_out,
+                                           encoder_attention_mask=attention_mask)
+            model_out = self.lm_head(model_out['last_hidden_state'])
+
+            return wae_enc_out, wae_dec_out, model_out
 
     #===================================#
     #=============== T5 ================#
     #===================================#
 
-        if self.model_type == 'T5':
+        elif self.model_type == 'T5':
             # Encoder1 Forward
             wae_enc_out = self.encoder1_embedding(input_ids)
             new_attention_mask = self.model1.get_extended_attention_mask(attention_mask, 
