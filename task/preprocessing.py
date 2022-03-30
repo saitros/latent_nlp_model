@@ -88,18 +88,24 @@ def preprocessing(args):
 
     with open(os.path.join(save_path, save_name), 'wb') as f:
         pickle.dump({
-            'train_src_indices': processed_src['train'],
-            'valid_src_indices': processed_src['valid'],
-            'train_trg_indices': processed_trg['train'],
-            'valid_trg_indices': processed_trg['valid'],
+            'train_src_indices': processed_src['train']['input_ids'],
+            'valid_src_indices': processed_src['valid']['input_ids'],
+            'train_trg_indices': processed_trg['train']['input_ids'],
+            'valid_trg_indices': processed_trg['valid']['input_ids'],
+            'train_src_att_mask': processed_src['train']['attention_mask'],
+            'valid_src_att_mask': processed_src['valid']['attention_mask'],
+            'train_trg_att_mask': processed_trg['train']['attention_mask'],
+            'valid_trg_att_mask': processed_trg['valid']['attention_mask'],
             'src_word2id': word2id['src'],
             'trg_word2id': word2id['trg']
         }, f)
 
     with open(os.path.join(save_path, 'test_' + save_name), 'wb') as f:
         pickle.dump({
-            'test_src_indices': processed_src['test'],
-            'test_trg_indices': processed_src['test'],
+            'test_src_indices': processed_src['test']['input_ids'],
+            'test_trg_indices': processed_trg['test']['input_ids'],
+            'train_src_att_mask': processed_src['test']['attention_mask'],
+            'valid_src_att_mask': processed_trg['test']['attention_mask'],
             'src_word2id': word2id['src'],
             'trg_word2id': word2id['trg']
         }, f)

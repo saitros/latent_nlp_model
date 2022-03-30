@@ -41,8 +41,14 @@ def training(args):
     # 1) Data open
     write_log(logger, "Load data...")
     gc.disable()
-    save_name = f'processed_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
-    with open(os.path.join(args.preprocess_path, save_name), 'rb') as f:
+
+    save_path = os.path.join(args.preprocess_path, args.tokenizer)
+    if args.tokenizer == 'spm':
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+    else:
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.pkl'
+
+    with open(os.path.join(save_path, save_name), 'rb') as f:
         data_ = pickle.load(f)
         train_src_indices = data_['train_src_indices']
         valid_src_indices = data_['valid_src_indices']
