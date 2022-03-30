@@ -9,7 +9,7 @@ from transformers import T5ForConditionalGeneration, T5EncoderModel, T5Config, T
 from transformers import BartTokenizerFast, BartForConditionalGeneration, BartConfig
 
 class Pretrained_Transformer(nn.Module):
-    def __init__(self, model_type, decoder_type, isPreTrain, d_latent, device):
+    def __init__(self, model_type, isPreTrain, d_latent, device):
         super().__init__()
 
         """
@@ -39,10 +39,10 @@ class Pretrained_Transformer(nn.Module):
                 self.model = T5ForConditionalGeneration(config=model_config)
 
             # Encoder1 Setting
-            self.encoder1_embedding = self.model1.encoder.embed_tokens
-            self.encoder1_model = self.model1.encoder.block
-            self.encoder1_final_layer_norm = self.model1.encoder.final_layer_norm
-            self.encoder1_dropout = self.model1.encoder.dropout
+            self.encoder_embedding = self.model.encoder.embed_tokens
+            self.encoder_model = self.model.encoder.block
+            self.encoder_final_layer_norm = self.model.encoder.final_layer_norm
+            self.encoder_dropout = self.model.encoder.dropout
 
         elif self.model_type == 'bart':
             if self.isPreTrain:

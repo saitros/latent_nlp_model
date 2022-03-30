@@ -52,8 +52,12 @@ def training(args):
         data_ = pickle.load(f)
         train_src_indices = data_['train_src_indices']
         valid_src_indices = data_['valid_src_indices']
+        train_src_att_mask = data_['train_src_att_mask']
+        valid_src_att_mask = data_['valid_src_att_mask']
         train_trg_indices = data_['train_trg_indices']
         valid_trg_indices = data_['valid_trg_indices']
+        train_trg_att_mask = data_['train_src_att_mask']
+        valid_trg_att_mask = data_['valid_src_att_mask']
         src_word2id = data_['src_word2id']
         trg_word2id = data_['trg_word2id']
         src_vocab_num = len(src_word2id)
@@ -64,9 +68,11 @@ def training(args):
 
     # 2) Dataloader setting
     dataset_dict = {
-        'train': CustomDataset(train_src_indices, train_trg_indices, 
+        'train': CustomDataset(src_list=train_src_indices, trg_list=train_trg_indices, 
+                            src_att=train_src_att_mask, trg_att=train_trg_indices,
                             min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-        'valid': CustomDataset(valid_src_indices, valid_trg_indices,
+        'valid': CustomDataset(src_list=valid_src_indices, trg_list=valid_trg_indices,
+                            src_att=valid_src_att_mask, trg_att=valid_trg_indices,
                             min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
     }
     dataloader_dict = {
@@ -85,20 +91,24 @@ def training(args):
 
     # 1) Model initiating
     write_log(logger, 'Instantiating model...')
-    model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
-                        pad_idx=args.pad_id, bos_idx=args.bos_id, eos_idx=args.eos_id,
-                        d_model=args.d_model, d_embedding=args.d_embedding, n_head=args.n_head,
-                        dim_feedforward=args.dim_feedforward,
-                        num_common_layer=args.num_common_layer, num_encoder_layer=args.num_encoder_layer,
-                        num_decoder_layer=args.num_decoder_layer,
-                        src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                        dropout=args.dropout, embedding_dropout=args.embedding_dropout,
-                        trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
-                        emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                        variational=args.variational, parallel=args.parallel)
+    if args.model_type == 'custom_transformer':
+        model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
+                            pad_idx=args.pad_id, bos_idx=args.bos_id, eos_idx=args.eos_id,
+                            d_model=args.d_model, d_embedding=args.d_embedding, n_head=args.n_head,
+                            dim_feedforward=args.dim_feedforward,
+                            num_common_layer=args.num_common_layer, num_encoder_layer=args.num_encoder_layer,
+                            num_decoder_layer=args.num_decoder_layer,
+                            src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                            dropout=args.dropout, embedding_dropout=args.embedding_dropout,
+                            trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
+                            emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
+                            variational=args.variational, parallel=args.parallel)
+        tgt_mask = model.generate_square_subsequent_mask(args.trg_max_len, device)
+    else:
+        model = Pretrained_Transformer(model_type=args.model_type, isPreTrain=args.isPreTrain)
     model.train()
     model = model.to(device)
-    tgt_mask = model.generate_square_subsequent_mask(args.trg_max_len, device)
+    
 
     # 2) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)

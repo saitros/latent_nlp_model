@@ -46,9 +46,9 @@ if __name__=='__main__':
     parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     # Preprocessing setting
-    parser.add_argument('--tokenizer', default='spm', choices=[
+    parser.add_argument('--tokenizer', default='bart', choices=[
         'spm', 'bert', 'bart', 'T5'
-    ], help='Tokenizer select; Default is sentencepiece')
+            ], help='Tokenizer select; Default is bart')
     parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
                         help="Google's SentencePiece model type; Default is unigram")
     parser.add_argument('--src_vocab_size', default=8000, type=int,
@@ -64,6 +64,12 @@ if __name__=='__main__':
     parser.add_argument('--eos_id', default=2, type=int,
                         help='Padding token index; Default is 2')
     # Model setting
+    # 0) Model selection
+    parser.add_argument('--model_type', default='bart', type=str, choices=[
+        'custom_transformer', 'bart', 'T5'
+            ], help='Model type selection; Default is bart')
+    parser.add_argument('--isPreTrain', default=False, type=str2bool,
+                        help='Using pre-trained model; Default is False')
     # 1) Custom Transformer
     parser.add_argument('--d_model', default=768, type=int, 
                         help='Transformer model dimension; Default is 768')
@@ -95,9 +101,7 @@ if __name__=='__main__':
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
     parser.add_argument('--num_common_layer', default=6, type=int, 
                         help="Number of common layers; Default is 6")
-    # 2) Pre-trained Language Model
-    parser.add_argument('--plm_model',)
-    # 3) Variational model
+    # 2) Variational model
     parser.add_argument('--variational', default=False, type=str2bool,
                         help='Variational transformer mode; Default is False')
     parser.add_argument('--d_latent', default=128, type=int, 
