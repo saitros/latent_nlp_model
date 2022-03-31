@@ -87,7 +87,7 @@ class Pretrained_Transformer(nn.Module):
 
 
     def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask, 
-                non_pad_position=None):
+                non_pad_position=None, tgt_subsqeunt_mask=None):
 
     #===================================#
     #===============Bart================#
@@ -95,48 +95,57 @@ class Pretrained_Transformer(nn.Module):
 
         if self.model_type == 'bart':
 
-            # Input and Output embedding
-            src_input_embeds = self.embeddings(src_input_ids)
-            trg_input_embeds = self.embeddings(trg_input_ids)
+            # # Input and Output embedding
+            # src_input_embeds = self.embeddings(src_input_ids)
+            # trg_input_embeds = self.embeddings(trg_input_ids)
 
-            # Encoder Forward
-            src_encoder_out = self.encoder_model(inputs_embeds=src_input_embeds,
-                                                 attention_mask=src_attention_mask)
-            src_encoder_out = src_encoder_out['last_hidden_state']
+            # # Encoder Forward
+            # src_encoder_out = self.encoder_model(inputs_embeds=src_input_embeds,
+            #                                      attention_mask=src_attention_mask)
+            # src_encoder_out = src_encoder_out['last_hidden_state']
 
-            if self.variational:
-                # Source sentence latent mapping
-                src_mu = self.context_to_mu(src_encoder_out)
-                src_logvar = self.context_to_logvar(src_encoder_out)
-                # Target sentence latent mapping
-                with torch.no_grad():
-                    trg_encoder_out = self.encoder_model(input_ids=trg_input_ids,
-                                                    attention_mask=trg_attention_mask)
-                    trg_encoder_out = trg_encoder_out['last_hidden_state']
+            # if self.variational:
+            #     # Source sentence latent mapping
+            #     src_mu = self.context_to_mu(src_encoder_out)
+            #     src_logvar = self.context_to_logvar(src_encoder_out)
+            #     # Target sentence latent mapping
+            #     with torch.no_grad():
+            #         trg_encoder_out = self.encoder_model(input_ids=trg_input_ids,
+            #                                         attention_mask=trg_attention_mask)
+            #         trg_encoder_out = trg_encoder_out['last_hidden_state']
 
-                trg_mu = self.context_to_mu(trg_encoder_out)
-                trg_logvar = self.context_to_logvar(trg_encoder_out)
+            #     trg_mu = self.context_to_mu(trg_encoder_out)
+            #     trg_logvar = self.context_to_logvar(trg_encoder_out)
 
-                kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar)
+            #     kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar)
 
-                mu = self.mu_to_context(src_mu)
-                logvar = self.logvar_to_context(src_logvar)
+            #     mu = self.mu_to_context(src_mu)
+            #     logvar = self.logvar_to_context(src_logvar)
 
-                std = logvar.mul(0.5).exp_()
-                eps = Variable(std.data.new(std.size()).normal_())
-                z = eps.mul(std).add_(mu)
+            #     std = logvar.mul(0.5).exp_()
+            #     eps = Variable(std.data.new(std.size()).normal_())
+            #     z = eps.mul(std).add_(mu)
 
-                src_encoder_out = torch.cat([src_encoder_out, z], dim=2)
-                src_encoder_out = self.latent_to_decoder(src_encoder_out)
-            else:
-                kl = 0
+            #     src_encoder_out = torch.cat([src_encoder_out, z], dim=2)
+            #     src_encoder_out = self.latent_to_decoder(src_encoder_out)
+            # else:
+            #     kl = 0
 
-            # Decoder
-            model_out = self.decoder_model(inputs_embeds=trg_input_embeds, 
-                                           attention_mask=trg_attention_mask,
-                                           encoder_hidden_states=src_encoder_out,
-                                           encoder_attention_mask=src_attention_mask)
-            model_out = self.lm_head(model_out['last_hidden_state'])
+            # # Decoder
+            # model_out = self.decoder_model(inputs_embeds=trg_input_embeds, 
+            #                                attention_mask=trg_attention_mask,
+            #                                encoder_hidden_states=src_encoder_out,
+            #                                encoder_attention_mask=src_attention_mask)
+            # model_out = self.lm_head(model_out['last_hidden_state'])
+
+            # if non_pad_position is not None:
+            #     model_out = model_out[non_pad_position]
+
+            # testing
+            model_out = self.model(input_ids=src_input_ids, attention_mask=src_attention_mask)
+            model_out = model_out.logits
+
+            kl = 0
 
             if non_pad_position is not None:
                 model_out = model_out[non_pad_position]

@@ -95,12 +95,13 @@ class Transformer(nn.Module):
             z = mu
         return z, mu, logvar
             
-    def forward(self, src_input_sentence, trg_input_sentence, tgt_mask, non_pad_position=None):
-        src_key_padding_mask = (src_input_sentence == self.pad_idx)
-        tgt_key_padding_mask = (trg_input_sentence == self.pad_idx)
+    def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask,
+                non_pad_position=None, tgt_subsqeunt_mask=None):
+        src_key_padding_mask = (src_input_ids == self.pad_idx)
+        tgt_key_padding_mask = (trg_input_ids == self.pad_idx)
 
-        encoder_out = self.src_embedding(src_input_sentence).transpose(0, 1)
-        decoder_out = self.trg_embedding(trg_input_sentence).transpose(0, 1)
+        encoder_out = self.src_embedding(src_input_ids).transpose(0, 1)
+        decoder_out = self.trg_embedding(trg_input_ids).transpose(0, 1)
 
         # Parallel Transformer
         if self.parallel:
@@ -114,7 +115,7 @@ class Transformer(nn.Module):
                     encoder_out_cat = torch.cat((encoder_out_cat, encoder_out_), dim=0)
 
             for i, decoder in enumerate(self.decoders):
-                decoder_out = decoder(decoder_out, encoder_out_cat[i], tgt_mask=tgt_mask,
+                decoder_out = decoder(decoder_out, encoder_out_cat[i], tgt_mask=tgt_subsqeunt_mask,
                     memory_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=tgt_key_padding_mask)
 
         # Non-parallel Transformer
@@ -150,7 +151,7 @@ class Transformer(nn.Module):
 
             # Decoder
             for decoder in self.decoders:
-                decoder_out = decoder(decoder_out, encoder_out, tgt_mask=tgt_mask,
+                decoder_out = decoder(decoder_out, encoder_out, tgt_mask=tgt_subsqeunt_mask,
                     memory_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=tgt_key_padding_mask)
 
         decoder_out = decoder_out.transpose(0, 1).contiguous()

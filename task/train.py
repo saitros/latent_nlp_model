@@ -104,17 +104,18 @@ def training(args):
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational=args.variational, parallel=args.parallel)
-        tgt_mask = model.generate_square_subsequent_mask(args.trg_max_len, device)
+        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     else:
         model = Pretrained_Transformer(model_type=args.model_type, isPreTrain=args.isPreTrain,
                                        variational=args.variational, d_latent=args.d_latent)
+        tgt_subsqeunt_mask = None
     model = model.to(device)
     
 
     # 2) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)
     scheduler = shceduler_select(optimizer, dataloader_dict, args)
-    # scaler = GradScaler()
+    scaler = GradScaler()
 
     # 3) Model resume
     start_epoch = 0
@@ -157,28 +158,26 @@ def training(args):
                 trg = trg.to(device, non_blocking=True)
                 trg_att = trg_att.to(device, non_blocking=True)
 
-                non_pad = trg != args.pad_id
-                trg_sequences_target = trg[non_pad].contiguous().view(-1)
+                trg_target = trg[:, 1:]
+                non_pad = trg_target != args.pad_id
+                trg_target = trg_target[non_pad].contiguous().view(-1)
 
                 # Train
                 if phase == 'train':
 
-                    predicted, kl = model(
-                        src, src_att, trg, trg_att, non_pad_position=non_pad)
-                    predicted = predicted.view(-1, predicted.size(-1))
-                    nmt_loss = label_smoothing_loss(predicted, trg_sequences_target, trg_pad_idx=args.pad_id)
-                    total_loss = nmt_loss + kl
+                    with autocast():
+                        predicted, kl = model(
+                            src, src_att, trg[:, :-1], trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                        predicted = predicted.view(-1, predicted.size(-1))
+                        nmt_loss = label_smoothing_loss(predicted, trg_target, trg_pad_idx=args.pad_id)
+                        total_loss = nmt_loss + kl
 
-                    # scaler.scale(total_loss).backward()
-                    # if args.clip_grad_norm > 0:
-                    #     scaler.unscale_(optimizer)
-                    #     clip_grad_norm_(model.parameters(), args.clip_grad_norm)
-                    # scaler.step(optimizer)
-                    # scaler.update()
-                    total_loss.backward()
+                    scaler.scale(total_loss).backward()
                     if args.clip_grad_norm > 0:
+                        scaler.unscale_(optimizer)
                         clip_grad_norm_(model.parameters(), args.clip_grad_norm)
-                    optimizer.step()
+                    scaler.step(optimizer)
+                    scaler.update()
 
                     if args.scheduler in ['constant', 'warmup']:
                         scheduler.step()
@@ -187,7 +186,7 @@ def training(args):
 
                     # Print loss value only training
                     if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
-                        acc = (predicted.max(dim=1)[1] == trg_sequences_target).sum() / len(trg_sequences_target)
+                        acc = (predicted.max(dim=1)[1] == trg_target).sum() / len(trg_target)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.3f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
                             total_loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
@@ -199,11 +198,12 @@ def training(args):
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
-                        predicted, kl = model(src, trg, tgt_mask, non_pad_position=non_pad)
-                        nmt_loss = F.cross_entropy(predicted, trg_sequences_target)
+                        predicted, kl = model(
+                            src, src_att, trg[:, :-1], trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                        nmt_loss = F.cross_entropy(predicted, trg_target)
                         total_loss = nmt_loss + kl
                     val_loss += total_loss.item()
-                    val_acc += (predicted.max(dim=1)[1] == trg_sequences_target).sum() / len(trg_sequences_target)
+                    val_acc += (predicted.max(dim=1)[1] == trg_target).sum() / len(trg_target)
                     if args.scheduler == 'reduce_valid':
                         scheduler.step(val_loss)
                     if args.scheduler == 'lambda':

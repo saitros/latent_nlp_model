@@ -111,8 +111,8 @@ if __name__=='__main__':
     scheduler_list = ['constant', 'warmup', 'reduce_train', 'reduce_valid', 'lambda']
     parser.add_argument('--optimizer', default='AdamW', type=str, choices=optim_list,
                         help="Choose optimizer setting in 'AdamW', 'Adam', 'SGD'; Default is AdamW")
-    parser.add_argument('--scheduler', default='constant', type=str, choices=scheduler_list,
-                        help="Choose optimizer setting in 'constant', 'warmup', 'reduce'; Default is constant")
+    parser.add_argument('--scheduler', default='warmup', type=str, choices=scheduler_list,
+                        help="Choose optimizer setting in 'constant', 'warmup', 'reduce'; Default is warmup")
     parser.add_argument('--n_warmup_epochs', default=2, type=float, 
                         help='Wamrup epochs when using warmup scheduler; Default is 2')
     parser.add_argument('--lr_lambda', default=0.95, type=float,

@@ -1,7 +1,10 @@
 import sentencepiece as spm
 
 def spm_tokenizing(src_sequences, trg_sequences, args):
+    # 0) Dictionary setting
     processed_src, processed_trg, word2id = dict(), dict(), dict()
+    processed_src['train'], processed_src['valid'], processed_src['test'] = dict(), dict(), dict()
+    processed_trg['train'], processed_trg['valid'], processed_trg['test'] = dict(), dict(), dict()
 
     # 1) Source lanugage
     # Split to train, valid, test
@@ -81,15 +84,15 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     spm_trg = spm.SentencePieceProcessor()
     spm_trg.Load(f'{args.preprocess_path}/m_trg_{args.trg_vocab_size}.model')
 
-    processed_trg['train'] = tuple(
+    processed_trg['train']['input_ids'] = tuple(
         [args.bos_id] + spm_trg.encode(
                             text, enable_sampling=True, alpha=0.1, nbest_size=-1, out_type=int) + \
         [args.eos_id] for text in train_trg_sequences
     )
-    processed_trg['valid'] = tuple(
+    processed_trg['valid']['input_ids'] = tuple(
         [args.bos_id] + spm_trg.encode(text, out_type=int) + [args.eos_id] for text in valid_trg_sequences
     )
-    processed_trg['test'] = tuple(
+    processed_trg['test']['input_ids'] = tuple(
         [args.bos_id] + spm_trg.encode(text, out_type=int) + [args.eos_id] for text in test_trg_sequences
     )
 

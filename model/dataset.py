@@ -12,13 +12,13 @@ class CustomDataset(Dataset):
                 src_tensor[:len(src)] = torch.tensor(src, dtype=torch.long)
                 # Source attention mask
                 src_att_mask = torch.zeros(src_max_len, dtype=torch.long)
-                src_att_mask[:len(src)] = torch.tensor(src_att, dtype=torch.long)
+                src_att_mask[:len(src_att)] = torch.tensor(src_att, dtype=torch.long)
                 # Target tensor
                 trg_tensor = torch.zeros(trg_max_len, dtype=torch.long)
                 trg_tensor[:len(trg)] = torch.tensor(trg, dtype=torch.long)
                 # Target attention mask
                 trg_att_mask = torch.zeros(src_max_len, dtype=torch.long)
-                trg_att_mask[:len(src)] = torch.tensor(trg_att, dtype=torch.long)
+                trg_att_mask[:len(trg_att)] = torch.tensor(trg_att, dtype=torch.long)
                 self.tensor_list.append((src_tensor, src_att_mask, trg_tensor, trg_att_mask))
 
         self.tensor_list = tuple(self.tensor_list)
