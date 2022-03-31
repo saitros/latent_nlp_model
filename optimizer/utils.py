@@ -18,15 +18,15 @@ def optimizer_select(model, args):
         },
     ]
     if args.optimizer == 'SGD':
-        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), 
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, optimizer_grouped_parameters), 
                               args.lr, momentum=0.9)
     elif args.optimizer == 'Adam':
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, optimizer_grouped_parameters), 
                                lr=args.lr, eps=1e-8)
     elif args.optimizer == 'AdamW':
-        optimizer = optimizer = AdamW(model.parameters(), lr=args.lr, eps=1e-8)
+        optimizer = optimizer = AdamW(optimizer_grouped_parameters, lr=args.lr, eps=1e-8)
     elif args.optimizer == 'Ralamb':
-        optimizer = Ralamb(filter(lambda p: p.requires_grad, model.parameters()), 
+        optimizer = Ralamb(filter(lambda p: p.requires_grad, optimizer_grouped_parameters), 
                            lr=args.lr)
     else:
         raise Exception("Choose optimizer in ['AdamW', 'Adam', 'SGD', 'Ralamb']")

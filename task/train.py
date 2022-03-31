@@ -14,6 +14,7 @@ from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
+from model.plm.model import Pretrained_Transformer
 from model.custom_transformer.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
@@ -69,10 +70,10 @@ def training(args):
     # 2) Dataloader setting
     dataset_dict = {
         'train': CustomDataset(src_list=train_src_indices, trg_list=train_trg_indices, 
-                            src_att_mask_list=train_src_att_mask, trg_att_mask_list=train_trg_indices,
+                            src_att_mask_list=train_src_att_mask, trg_att_mask_list=train_trg_att_mask,
                             min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
         'valid': CustomDataset(src_list=valid_src_indices, trg_list=valid_trg_indices,
-                            src_att_mask_list=valid_src_att_mask, trg_att_mask_list=valid_trg_indices,
+                            src_att_mask_list=valid_src_att_mask, trg_att_mask_list=valid_trg_att_mask,
                             min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
     }
     dataloader_dict = {
@@ -105,15 +106,15 @@ def training(args):
                             variational=args.variational, parallel=args.parallel)
         tgt_mask = model.generate_square_subsequent_mask(args.trg_max_len, device)
     else:
-        model = Pretrained_Transformer(model_type=args.model_type, isPreTrain=args.isPreTrain)
-    model.train()
+        model = Pretrained_Transformer(model_type=args.model_type, isPreTrain=args.isPreTrain,
+                                       variational=args.variational, d_latent=args.d_latent)
     model = model.to(device)
     
 
     # 2) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)
     scheduler = shceduler_select(optimizer, dataloader_dict, args)
-    scaler = GradScaler()
+    # scaler = GradScaler()
 
     # 3) Model resume
     start_epoch = 0
@@ -145,14 +146,16 @@ def training(args):
                 val_loss = 0
                 val_acc = 0
                 model.eval()
-            for i, (src, trg) in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
+            for i, (src, src_att, trg, trg_att) in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
                 # Optimizer setting
-                optimizer.zero_grad(set_to_none=True)
+                optimizer.zero_grad()
 
                 # Input, output setting
                 src = src.to(device, non_blocking=True)
+                src_att = src_att.to(device, non_blocking=True)
                 trg = trg.to(device, non_blocking=True)
+                trg_att = trg_att.to(device, non_blocking=True)
 
                 non_pad = trg != args.pad_id
                 trg_sequences_target = trg[non_pad].contiguous().view(-1)
@@ -160,19 +163,22 @@ def training(args):
                 # Train
                 if phase == 'train':
 
-                    with autocast():
-                        predicted, kl = model(
-                            src, trg, tgt_mask, non_pad_position=non_pad)
-                        predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_sequences_target, trg_pad_idx=args.pad_id)
-                        total_loss = nmt_loss + kl
+                    predicted, kl = model(
+                        src, src_att, trg, trg_att, non_pad_position=non_pad)
+                    predicted = predicted.view(-1, predicted.size(-1))
+                    nmt_loss = label_smoothing_loss(predicted, trg_sequences_target, trg_pad_idx=args.pad_id)
+                    total_loss = nmt_loss + kl
 
-                    scaler.scale(total_loss).backward()
+                    # scaler.scale(total_loss).backward()
+                    # if args.clip_grad_norm > 0:
+                    #     scaler.unscale_(optimizer)
+                    #     clip_grad_norm_(model.parameters(), args.clip_grad_norm)
+                    # scaler.step(optimizer)
+                    # scaler.update()
+                    total_loss.backward()
                     if args.clip_grad_norm > 0:
-                        scaler.unscale_(optimizer)
                         clip_grad_norm_(model.parameters(), args.clip_grad_norm)
-                    scaler.step(optimizer)
-                    scaler.update()
+                    optimizer.step()
 
                     if args.scheduler in ['constant', 'warmup']:
                         scheduler.step()

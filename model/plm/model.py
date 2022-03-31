@@ -2,14 +2,17 @@ import math
 # Import PyTorch
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 # Import Huggingface
 # T5
 from transformers import T5ForConditionalGeneration, T5EncoderModel, T5Config, T5TokenizerFast
 # Bart
 from transformers import BartTokenizerFast, BartForConditionalGeneration, BartConfig
+#
+from .loss import GaussianKLLoss
 
 class Pretrained_Transformer(nn.Module):
-    def __init__(self, model_type, isPreTrain, d_latent):
+    def __init__(self, model_type, isPreTrain, variational, d_latent):
         super().__init__()
 
         """
@@ -57,7 +60,10 @@ class Pretrained_Transformer(nn.Module):
             else:
                 model_config = BartConfig.from_pretrained("facebook/bart-base")
                 self.model = BartForConditionalGeneration(config=model_config)
+                self.model.init_weights()
 
+            # Shared embedding setting
+            self.embeddings = self.model.model.shared
             # Encoder Setting
             self.encoder_model = self.model.get_encoder()
             # Dimension Setting
@@ -68,18 +74,34 @@ class Pretrained_Transformer(nn.Module):
             self.vocab_size = self.model.lm_head.out_features
             self.lm_head = self.model.lm_head
 
+        # Variational model setting
+        self.variational = variational
+        if self.variational:
+            self.context_to_mu = nn.Linear(self.d_hidden, d_latent)
+            self.context_to_logvar = nn.Linear(self.d_hidden, d_latent)
+            self.mu_to_context = nn.Linear(d_latent, self.d_hidden)
+            self.logvar_to_context = nn.Linear(d_latent, self.d_hidden)
 
-    def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask):
+            self.kl_criterion = GaussianKLLoss()
+            self.latent_to_decoder = nn.Linear(self.d_hidden*2, self.d_hidden)
+
+
+    def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask, 
+                non_pad_position=None):
 
     #===================================#
     #===============Bart================#
     #===================================#
 
-        if self.model_type == 'Bart':
+        if self.model_type == 'bart':
+
+            # Input and Output embedding
+            src_input_embeds = self.embeddings(src_input_ids)
+            trg_input_embeds = self.embeddings(trg_input_ids)
 
             # Encoder Forward
-            src_encoder_out = self.encoder_model(input_ids=src_input_ids,
-                                             attention_mask=src_attention_mask)
+            src_encoder_out = self.encoder_model(inputs_embeds=src_input_embeds,
+                                                 attention_mask=src_attention_mask)
             src_encoder_out = src_encoder_out['last_hidden_state']
 
             if self.variational:
@@ -104,19 +126,22 @@ class Pretrained_Transformer(nn.Module):
                 eps = Variable(std.data.new(std.size()).normal_())
                 z = eps.mul(std).add_(mu)
 
-                decoder_out = torch.cat([decoder_out, z], dim=2)
-                decoder_out = self.latent_to_decoder(decoder_out)
+                src_encoder_out = torch.cat([src_encoder_out, z], dim=2)
+                src_encoder_out = self.latent_to_decoder(src_encoder_out)
             else:
                 kl = 0
 
             # Decoder
-            model_out = self.decoder_model(inputs_embeds=wae_enc_out, 
-                                           attention_mask=attention_mask,
-                                           encoder_hidden_states=wae_dec_out,
-                                           encoder_attention_mask=attention_mask)
+            model_out = self.decoder_model(inputs_embeds=trg_input_embeds, 
+                                           attention_mask=trg_attention_mask,
+                                           encoder_hidden_states=src_encoder_out,
+                                           encoder_attention_mask=src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
 
-            return wae_enc_out, wae_dec_out, model_out
+            if non_pad_position is not None:
+                model_out = model_out[non_pad_position]
+
+            return model_out, kl
 
     #===================================#
     #=============== T5 ================#
