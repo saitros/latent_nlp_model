@@ -9,7 +9,7 @@ class GaussianKLLoss(nn.Module):
     def forward(self, mu1, logvar1, mu2, logvar2):
         numerator = logvar1.exp() + torch.pow(mu1 - mu2, 2)
         fraction = torch.div(numerator, (logvar2.exp()))
-        kl = 0.5 * torch.sum(logvar2 - logvar1 + fraction - 1, dim=1)
+        kl = 0.5 * torch.sum(logvar2 - logvar1 + fraction - 1, dim=0)
         # Mean 때려박는거 맞나...?
         return kl.mean()
 

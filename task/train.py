@@ -167,7 +167,7 @@ def training(args):
 
                     with autocast():
                         predicted, kl = model(
-                            src, src_att, trg[:, :-1], trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                            src, src_att, trg, trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
                         nmt_loss = label_smoothing_loss(predicted, trg_target, trg_pad_idx=args.pad_id)
                         total_loss = nmt_loss + kl
@@ -199,7 +199,7 @@ def training(args):
                 if phase == 'valid':
                     with torch.no_grad():
                         predicted, kl = model(
-                            src, src_att, trg[:, :-1], trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                            src, src_att, trg, trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         nmt_loss = F.cross_entropy(predicted, trg_target)
                         total_loss = nmt_loss + kl
                     val_loss += total_loss.item()
@@ -212,8 +212,11 @@ def training(args):
             if phase == 'valid':
                 val_loss /= len(dataloader_dict[phase])
                 val_acc /= len(dataloader_dict[phase])
+                write_log(logger, 'This version is variational kl criterion dim=0 version')
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
+                save_file_name = os.path.join(args.save_path, 
+                                              f'checkpoint_p_{args.parallel}_v_{args.variational}.pth.tar')
                 if val_acc > best_val_acc:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({
@@ -222,7 +225,7 @@ def training(args):
                         'optimizer': optimizer.state_dict(),
                         'scheduler': scheduler.state_dict(),
                         'scaler': scaler.state_dict()
-                    }, f'checkpoint_{args.parallel}.pth.tar')
+                    }, save_file_name)
                     best_val_acc = val_acc
                     best_epoch = epoch
                 else:

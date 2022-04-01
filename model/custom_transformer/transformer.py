@@ -80,26 +80,20 @@ class Transformer(nn.Module):
 
         if emb_src_trg_weight_sharing:
             self.src_embedding.token.weight = self.trg_embedding.token.weight
-
-    def reparameterize(self, encoder_out):
-        """
-        
-        """
-        mu = self.context_to_mu(encoder_out)
-        logvar = self.context_to_logvar(encoder_out)
-        if self.training:
-            std = logvar.mul(0.5).exp_()
-            eps = Variable(std.data.new(std.size()).normal_())
-            z = eps.mul(std).add_(mu)
-        else:
-            z = mu
-        return z, mu, logvar
             
     def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask,
                 non_pad_position=None, tgt_subsqeunt_mask=None):
+
+        # Pre_setting for variational model and translation task
+        trg_input_ids_copy =  torch.clone(trg_input_ids)
+        trg_input_ids = trg_input_ids[:, :-1]
+
+        # Key padding mask setting
         src_key_padding_mask = (src_input_ids == self.pad_idx)
         tgt_key_padding_mask = (trg_input_ids == self.pad_idx)
+        tgt_key_padding_mask_ = (trg_input_ids_copy == self.pad_idx)
 
+        # Embedding
         encoder_out = self.src_embedding(src_input_ids).transpose(0, 1)
         decoder_out = self.trg_embedding(trg_input_ids).transpose(0, 1)
 
@@ -131,7 +125,8 @@ class Transformer(nn.Module):
                 # Target sentence latent mapping
                 with torch.no_grad():
                     for encoder in self.encoders:
-                        encoder_out_trg = encoder(decoder_out, src_key_padding_mask=tgt_key_padding_mask)
+                        encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
+                                                  src_key_padding_mask=tgt_key_padding_mask_)
                 trg_mu = self.context_to_mu(encoder_out_trg)
                 trg_logvar = self.context_to_logvar(encoder_out_trg)
 
@@ -144,8 +139,8 @@ class Transformer(nn.Module):
                 eps = Variable(std.data.new(std.size()).normal_())
                 z = eps.mul(std).add_(mu)
 
-                decoder_out = torch.cat([decoder_out, z], dim=2)
-                decoder_out = self.latent_to_decoder(decoder_out)
+                encoder_out = torch.cat([encoder_out, z], dim=2)
+                encoder_out = self.latent_to_decoder(encoder_out)
             else:
                 kl = 0
 
