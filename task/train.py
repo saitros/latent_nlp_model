@@ -14,8 +14,8 @@ from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
-from model.plm.model import Pretrained_Transformer
-from model.custom_transformer.loss import label_smoothing_loss
+from model.plm.bart import Bart
+from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
 
@@ -106,12 +106,11 @@ def training(args):
                             variational=args.variational, parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     else:
-        model = Pretrained_Transformer(model_type=args.model_type, isPreTrain=args.isPreTrain,
-                                       variational=args.variational, d_latent=args.d_latent)
+        model = Bart(isPreTrain=args.isPreTrain, variational=args.variational, d_latent=args.d_latent,
+                     emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
     model = model.to(device)
     
-
     # 2) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)
     scheduler = shceduler_select(optimizer, dataloader_dict, args)

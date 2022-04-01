@@ -6,7 +6,7 @@ from torch.nn import functional as F
 from torch.nn.modules.activation import MultiheadAttention
 # Import custom modules
 from .embedding import TransformerEmbedding
-from .loss import GaussianKLLoss
+from ..loss import GaussianKLLoss
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_num, trg_vocab_num, pad_idx=0, bos_idx=1, eos_idx=2, 
@@ -42,17 +42,6 @@ class Transformer(nn.Module):
         self.trg_embedding = TransformerEmbedding(trg_vocab_num, d_model, d_embedding,
             pad_idx=self.pad_idx, max_len=self.trg_max_len, dropout=embedding_dropout)
 
-        # Variational model setting
-        self.variational = variational
-        if self.variational:
-            self.context_to_mu = nn.Linear(d_model, d_latent)
-            self.context_to_logvar = nn.Linear(d_model, d_latent)
-            self.mu_to_context = nn.Linear(d_latent, d_model)
-            self.logvar_to_context = nn.Linear(d_latent, d_model)
-
-            self.kl_criterion = GaussianKLLoss()
-            self.latent_to_decoder = nn.Linear(d_model*2, d_model)
-
         # Transformer Encoder part
         self_attn = MultiheadAttention(d_model, n_head, dropout=dropout)
         self.encoders = nn.ModuleList([
@@ -70,6 +59,16 @@ class Transformer(nn.Module):
         self.trg_output_linear = nn.Linear(d_model, d_embedding)
         self.trg_output_norm = nn.LayerNorm(d_embedding, eps=1e-12)
         self.trg_output_linear2 = nn.Linear(d_embedding, trg_vocab_num)
+
+        # Variational model setting
+        self.variational = variational
+        if self.variational:
+            self.context_to_mu = nn.Linear(d_model, d_latent)
+            self.context_to_logvar = nn.Linear(d_model, d_latent)
+            self.mu_to_context = nn.Linear(d_latent, d_model)
+            self.logvar_to_context = nn.Linear(d_latent, d_model)
+
+            self.kl_criterion = GaussianKLLoss()
 
         # Weight sharing
         self.x_logit_scale = 1.
@@ -120,17 +119,17 @@ class Transformer(nn.Module):
 
             if self.variational:
                 # Source sentence latent mapping
-                src_mu = self.context_to_mu(encoder_out)
-                src_logvar = self.context_to_logvar(encoder_out)
+                src_mu = self.context_to_mu(encoder_out) # (token, batch, d_latent)
+                src_logvar = self.context_to_logvar(encoder_out) # (token, batch, d_latent)
                 # Target sentence latent mapping
                 with torch.no_grad():
                     for encoder in self.encoders:
                         encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
                                                   src_key_padding_mask=tgt_key_padding_mask_)
-                trg_mu = self.context_to_mu(encoder_out_trg)
-                trg_logvar = self.context_to_logvar(encoder_out_trg)
+                trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
+                trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
 
-                kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar)
+                kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
 
                 mu = self.mu_to_context(src_mu)
                 logvar = self.logvar_to_context(src_logvar)
@@ -139,8 +138,7 @@ class Transformer(nn.Module):
                 eps = Variable(std.data.new(std.size()).normal_())
                 z = eps.mul(std).add_(mu)
 
-                encoder_out = torch.cat([encoder_out, z], dim=2)
-                encoder_out = self.latent_to_decoder(encoder_out)
+                encoder_out = torch.add(encoder_out, z)
             else:
                 kl = 0
 
