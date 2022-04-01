@@ -61,7 +61,7 @@ class Bart(nn.Module):
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
-        trg_input_ids_copy =  torch.clone(trg_input_ids)
+        trg_input_ids_copy = torch.clone(trg_input_ids)
         trg_attention_mask_copy = torch.clone(trg_attention_mask)
         trg_input_ids = trg_input_ids[:, :-1]
         trg_attention_mask = trg_attention_mask[:, :-1]
@@ -114,11 +114,18 @@ class Bart(nn.Module):
             kl = 0
 
         # Decoder
-        model_out = self.decoder_model(inputs_embeds=trg_input_embeds, 
-                                        attention_mask=trg_attention_mask,
-                                        encoder_hidden_states=src_encoder_out,
-                                        encoder_attention_mask=src_attention_mask)
-        model_out = self.lm_head(model_out['last_hidden_state'])
+        if self.emb_src_trg_weight_sharing:
+            model_out = self.decoder_model(inputs_embeds=trg_input_embeds, 
+                                           attention_mask=trg_attention_mask,
+                                           encoder_hidden_states=src_encoder_out,
+                                           encoder_attention_mask=src_attention_mask)
+            model_out = self.lm_head(model_out['last_hidden_state'])
+        else:
+            model_out = self.decoder_model(input_ids=trg_input_ids, 
+                                           attention_mask=trg_attention_mask,
+                                           encoder_hidden_states=src_encoder_out,
+                                           encoder_attention_mask=src_attention_mask)
+            model_out = self.lm_head(model_out['last_hidden_state'])
 
         if non_pad_position is not None:
             model_out = model_out[non_pad_position]

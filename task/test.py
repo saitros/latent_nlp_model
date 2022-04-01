@@ -18,6 +18,7 @@ from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
+from model.plm.bart import Bart
 from utils import TqdmLoggingHandler, write_log
 
 def testing(args):
@@ -86,7 +87,7 @@ def testing(args):
                             variational=args.variational, parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     else:
-        model = Pretrained_Transformer(model_type=args.model_type, isPreTrain=args.isPreTrain,
+        model = Bart(model_type=args.model_type, isPreTrain=args.isPreTrain,
                                        variational=args.variational, d_latent=args.d_latent)
         tgt_subsqeunt_mask = None
 
