@@ -9,7 +9,7 @@ from transformers import T5ForConditionalGeneration, T5EncoderModel, T5Config, T
 # Bart
 from transformers import BartTokenizerFast, BartForConditionalGeneration, BartConfig
 #
-from .loss import GaussianKLLoss
+from ..loss import GaussianKLLoss
 
 class Pretrained_Transformer(nn.Module):
     def __init__(self, model_type, isPreTrain, variational, d_latent):
@@ -156,33 +156,33 @@ class Pretrained_Transformer(nn.Module):
     #=============== T5 ================#
     #===================================#
 
-        elif self.model_type == 'T5':
-            # Encoder1 Forward
-            wae_enc_out = self.encoder1_embedding(input_ids)
-            new_attention_mask = self.model1.get_extended_attention_mask(attention_mask, 
-                                                                         attention_mask.shape, self.device)
-            for i in range(len(self.encoder1_model)):
-                wae_enc_out, _ = self.encoder1_model[i](hidden_states=wae_enc_out, 
-                                                        attention_mask=new_attention_mask)
+        # elif self.model_type == 'T5':
+        #     # Encoder1 Forward
+        #     wae_enc_out = self.encoder1_embedding(input_ids)
+        #     new_attention_mask = self.model1.get_extended_attention_mask(attention_mask, 
+        #                                                                  attention_mask.shape, self.device)
+        #     for i in range(len(self.encoder1_model)):
+        #         wae_enc_out, _ = self.encoder1_model[i](hidden_states=wae_enc_out, 
+        #                                                 attention_mask=new_attention_mask)
 
-            wae_enc_out = self.encoder1_final_layer_norm(wae_enc_out)
-            wae_enc_out = self.encoder1_dropout(wae_enc_out)
+        #     wae_enc_out = self.encoder1_final_layer_norm(wae_enc_out)
+        #     wae_enc_out = self.encoder1_dropout(wae_enc_out)
 
-            # Encoder2 Forward
-            wae_dec_out = self.encoder2_model(inputs_embeds=wae_enc_out, 
-                                              attention_mask=attention_mask)
-            wae_dec_out = wae_dec_out['last_hidden_state']
+        #     # Encoder2 Forward
+        #     wae_dec_out = self.encoder2_model(inputs_embeds=wae_enc_out, 
+        #                                       attention_mask=attention_mask)
+        #     wae_dec_out = wae_dec_out['last_hidden_state']
 
-            # Decoder
-            if self.decoder_type == 'Transformer':
-                model_out = self.decoder_model(inputs_embeds=wae_enc_out, 
-                                            attention_mask=attention_mask,
-                                            encoder_hidden_states=wae_dec_out,
-                                            encoder_attention_mask=attention_mask)
-                model_out = self.lm_head(model_out['last_hidden_state'])
-            else:
-                model_out, _ = self.decoder_model(wae_enc_out)
-                model_out = self.decoder_linear1(model_out)
-                model_out = self.decoder_linear2(model_out)
+        #     # Decoder
+        #     if self.decoder_type == 'Transformer':
+        #         model_out = self.decoder_model(inputs_embeds=wae_enc_out, 
+        #                                     attention_mask=attention_mask,
+        #                                     encoder_hidden_states=wae_dec_out,
+        #                                     encoder_attention_mask=attention_mask)
+        #         model_out = self.lm_head(model_out['last_hidden_state'])
+        #     else:
+        #         model_out, _ = self.decoder_model(wae_enc_out)
+        #         model_out = self.decoder_linear1(model_out)
+        #         model_out = self.decoder_linear2(model_out)
 
-            return wae_enc_out, wae_dec_out, model_out
+        #     return wae_enc_out, wae_dec_out, model_out

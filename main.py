@@ -1,8 +1,6 @@
 # Import modules
 import time
 import argparse
-
-import defusedxml
 # Import custom modules
 from task.preprocessing import preprocessing
 from task.train import training
