@@ -10,7 +10,6 @@ class GaussianKLLoss(nn.Module):
         numerator = logvar1.exp() + torch.pow(mu1 - mu2, 2)
         fraction = torch.div(numerator, (logvar2.exp()))
         kl = 0.5 * torch.sum(logvar2 - logvar1 + fraction - 1, dim=0)
-        # Mean 때려박는거 맞나...?
         return kl.mean()
 
 def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):

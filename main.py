@@ -44,9 +44,9 @@ if __name__=='__main__':
     parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     # Preprocessing setting
-    parser.add_argument('--tokenizer', default='bart', choices=[
+    parser.add_argument('--tokenizer', default='spm', choices=[
         'spm', 'bert', 'bart', 'T5'
-            ], help='Tokenizer select; Default is bart')
+            ], help='Tokenizer select; Default is spm')
     parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
                         help="Google's SentencePiece model type; Default is unigram")
     parser.add_argument('--src_vocab_size', default=8000, type=int,
@@ -63,9 +63,9 @@ if __name__=='__main__':
                         help='Padding token index; Default is 2')
     # Model setting
     # 0) Model selection
-    parser.add_argument('--model_type', default='bart', type=str, choices=[
+    parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
         'custom_transformer', 'bart', 'T5'
-            ], help='Model type selection; Default is bart')
+            ], help='Model type selection; Default is custom_transformer')
     parser.add_argument('--isPreTrain', default=False, type=str2bool,
                         help='Using pre-trained model; Default is False')
     # 1) Custom Transformer

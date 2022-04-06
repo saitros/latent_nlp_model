@@ -108,7 +108,7 @@ def training(args):
     else:
         model = Bart(isPreTrain=args.isPreTrain, variational=args.variational, d_latent=args.d_latent,
                      emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
-        tgt_subsqeunt_mask = None
+        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     model = model.to(device)
     
     # 2) Optimizer & Learning rate scheduler setting
@@ -149,7 +149,7 @@ def training(args):
             for i, (src, src_att, trg, trg_att) in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
                 # Optimizer setting
-                optimizer.zero_grad()
+                optimizer.zero_grad(set_to_none=True)
 
                 # Input, output setting
                 src = src.to(device, non_blocking=True)
@@ -215,7 +215,7 @@ def training(args):
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
                 save_file_name = os.path.join(args.save_path, 
-                                              f'checkpoint_p_{args.parallel}_v_{args.variational}.pth.tar')
+                                              f'checkpoint_{args.data_name}_p_{args.parallel}_v_{args.variational}.pth.tar')
                 if val_acc > best_val_acc:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({
