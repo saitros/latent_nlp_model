@@ -29,6 +29,7 @@ class Bart(nn.Module):
         self.isPreTrain = isPreTrain
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
         self.model_config = BartConfig.from_pretrained("facebook/bart-base")
+        self.model_config.use_cache = False
         self.pad_idx = self.model_config.pad_token_id
 
         if self.isPreTrain:
@@ -116,13 +117,13 @@ class Bart(nn.Module):
         # Decoder
         if self.emb_src_trg_weight_sharing:
             model_out = self.decoder_model(inputs_embeds=trg_input_embeds, 
-                                           attention_mask=trg_attention_mask,
+                                           attention_mask =trg_attention_mask,
                                            encoder_hidden_states=src_encoder_out,
                                            encoder_attention_mask=src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
         else:
             model_out = self.decoder_model(input_ids=trg_input_ids, 
-                                           attention_mask=trg_attention_mask,
+                                           attention_mask =trg_attention_mask,
                                            encoder_hidden_states=src_encoder_out,
                                            encoder_attention_mask=src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
@@ -131,3 +132,9 @@ class Bart(nn.Module):
             model_out = model_out[non_pad_position]
 
         return model_out, kl
+
+    @staticmethod
+    def generate_square_subsequent_mask(sz, device):
+        mask = torch.tril(torch.ones(sz, sz, dtype=torch.float, device=device))
+        mask = mask.masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, 0.0)
+        return mask

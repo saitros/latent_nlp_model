@@ -104,8 +104,8 @@ def preprocessing(args):
         pickle.dump({
             'test_src_indices': processed_src['test']['input_ids'],
             'test_trg_indices': processed_trg['test']['input_ids'],
-            'train_src_att_mask': processed_src['test']['attention_mask'],
-            'valid_src_att_mask': processed_trg['test']['attention_mask'],
+            'test_src_att_mask': processed_src['test']['attention_mask'],
+            'test_trg_att_mask': processed_trg['test']['attention_mask'],
             'src_word2id': word2id['src'],
             'trg_word2id': word2id['trg']
         }, f)
