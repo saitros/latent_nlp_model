@@ -9,25 +9,23 @@ This code is written in Python. Dependencies include
 * PyTorch == 1.6
 * Transformers == 4.8.1
 
-### Installing
+## Preprocessing
 
 A step by step series of examples that tell you how to get a development env running
 
 Say what the step will be
 
 ```
-Give the example
+python main.py --preprocessing
 ```
 
-And repeat
+Available options are tokenizer(--tokenizer), SentencePiece model type(--sentencepiece_model; If tokenizer is spm),  source text vocabulary size(--src_vocab_size), target text vocabulary size(--trg_vocab_size), padding token id(--pad_id), unknown token id(--unk_id), start token id(--bos_id) and end token id(--eos_id).
 
 ```
-until finished
+python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram --src_vocab_size=8000 --trg_vocab_size=8000 --pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
 ```
 
-End with an example of getting some data out of the system or using it for a little demo
-
-## Running the tests
+## Training
 
 Explain how to run the automated tests for this system
 

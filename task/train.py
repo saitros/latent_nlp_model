@@ -211,7 +211,6 @@ def training(args):
             if phase == 'valid':
                 val_loss /= len(dataloader_dict[phase])
                 val_acc /= len(dataloader_dict[phase])
-                write_log(logger, 'This version is variational kl criterion dim=0 version')
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
                 save_file_name = os.path.join(args.save_path, 

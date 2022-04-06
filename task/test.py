@@ -132,6 +132,10 @@ def testing(args):
             src_seq_size = src.size(1)
             encoder_out_dict = defaultdict(list)
 
+            # For last loop
+            if src.size(0) != args.test_batch_size:
+                args.test_batch_size = src.size(0)
+
             # Encoding
             encoder_out = model.src_embedding(src).transpose(0, 1) # (src_seq, batch_size, d_model)
             src_key_padding_mask = (src == model.pad_idx) # (batch_size, src_seq)
