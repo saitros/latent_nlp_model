@@ -129,14 +129,14 @@ class Transformer(nn.Module):
                 trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
                 trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
 
+                std = logvar.mul(0.5).exp_()
+                eps = Variable(std.data.new(std.size()).normal_())
+                z = eps.mul(std).add_(mu)
+
                 kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
 
                 mu = self.mu_to_context(src_mu)
                 logvar = self.logvar_to_context(src_logvar)
-
-                std = logvar.mul(0.5).exp_()
-                eps = Variable(std.data.new(std.size()).normal_())
-                z = eps.mul(std).add_(mu)
 
                 encoder_out = torch.add(encoder_out, z)
             else:
