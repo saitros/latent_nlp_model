@@ -1,7 +1,7 @@
 # IIPL Latent-variable machine translation project
 This project is an NLP project conducted by IIPL. This project, which intends to apply latent-variables to various fields of NLP, aims to improve the performance of various NLP tasks such as low-resource machine translation, text style transfer, and dataset shift.
 
-## Dependencies
+### Dependencies
 
 This code is written in Python. Dependencies include
 
@@ -11,15 +11,13 @@ This code is written in Python. Dependencies include
 
 ## Preprocessing
 
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
+Before training the model, it needs to go through a preprocessing step. Preprocessing is performed through the '--preprocessing' option and the pickle file of the set data is saved in the preprocessing path (--preprocessing_path).
 
 ```
 python main.py --preprocessing
 ```
 
-Available options are tokenizer(--tokenizer), SentencePiece model type(--sentencepiece_model; If tokenizer is spm),  source text vocabulary size(--src_vocab_size), target text vocabulary size(--trg_vocab_size), padding token id(--pad_id), unknown token id(--unk_id), start token id(--bos_id) and end token id(--eos_id).
+Available options are tokenizer (--tokenizer), SentencePiece model type (--sentencepiece_model; If tokenizer is spm),  source text vocabulary size (--src_vocab_size), target text vocabulary size (--trg_vocab_size), padding token id (--pad_id), unknown token id (--unk_id), start token id (--bos_id) and end token id (--eos_id).
 
 ```
 python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram --src_vocab_size=8000 --trg_vocab_size=8000 --pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
@@ -65,7 +63,8 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Authors
 
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
+* **Kyohoon Jin** - *Project Manager* - [Link](https://github.com/fhzh123)
+* **Jaeyoung Park** - *Sub Manager* - [Link]
 
 See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
 
