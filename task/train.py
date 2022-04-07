@@ -1,6 +1,7 @@
 # Import modules
 import os
 import gc
+import psutil
 import pickle
 import logging
 from tqdm import tqdm
@@ -11,13 +12,14 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
+from torch.utils.tensorboard import SummaryWriter
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
 from model.plm.bart import Bart
 from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
-from utils import TqdmLoggingHandler, write_log
+from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 
 def training(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,6 +34,10 @@ def training(args):
     handler.setFormatter(logging.Formatter(" %(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
     logger.addHandler(handler)
     logger.propagate = False
+
+    if args.use_tensorboard:
+        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
+        writer.add_text('args', str(args))
 
     write_log(logger, 'Start training!')
 
@@ -194,6 +200,15 @@ def training(args):
                         freq = 0
                     freq += 1
 
+                    if args.use_tensorboard:
+                        acc = (predicted.max(dim=1)[1] == trg_target).sum() / len(trg_target)
+                        
+                        writer.add_scalar('TRAIN/Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('GPU_Usage', torch.cuda.memory_allocated() / 1048576, (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
+
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
@@ -230,6 +245,13 @@ def training(args):
                 else:
                     else_log = f'Still {best_epoch} epoch accuracy({round(best_val_acc.item()*100, 2)})% is better...'
                     write_log(logger, else_log)
+
+                if args.use_tensorboard:
+                    writer.add_scalar('VALID/Loss', val_loss, epoch)
+                    writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
+                    #writer.add_scalar('CPU_Usage', psutil.cpu_percent(), epoch)
+                    #writer.add_scalar('RAM_Usage', psutil.virtual_memory().percent, epoch)
+                    #writer.add_scalar('GPU_Usage', torch.cuda.memory_allocated() / 1048576, epoch) # MB Size
 
     # 3) Print results
     print(f'Best Epoch: {best_epoch}')

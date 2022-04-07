@@ -1,6 +1,7 @@
 # Import modules
 import os
 import sys
+import time
 import tqdm
 import logging
 import argparse
@@ -23,6 +24,9 @@ def path_check(args):
 
     if not os.path.exists(args.save_path):
         os.mkdir(args.save_path)
+
+    if not os.path.exists(args.tensorboard_path):
+        os.mkdir(args.tensorboard_path)
 
 class TqdmLoggingHandler(logging.Handler):
     def __init__(self, level=logging.DEBUG):
@@ -47,7 +51,22 @@ class TqdmLoggingHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
-
 def write_log(logger, message):
     if logger:
         logger.info(message)
+
+def get_tb_exp_name(args):
+    # Get experiment name for tensorboard visualization
+
+    ts = time.strftime('%Y-%b-%d-%H:%M:%S', time.localtime())
+
+    exp_name = str()
+
+    exp_name += "BS=%i_" % args.batch_size 
+    if args.num_epochs is not None:
+        exp_name += "EP=%i_" % args.num_epochs
+    if args.lr is not None:
+        exp_name += "LR=%.4f_" % args.lr
+    exp_name += "TS=%s" % ts
+
+    return exp_name

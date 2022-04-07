@@ -37,11 +37,11 @@ if __name__=='__main__':
     # Path setting
     parser.add_argument('--preprocess_path', default='./preprocessing', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='/HDD/dataset/WMT', type=str,
+    parser.add_argument('--data_path', default='./WMT', type=str,
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
-    parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
+    parser.add_argument('--save_path', default='./model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     # Preprocessing setting
     parser.add_argument('--tokenizer', default='spm', choices=[
@@ -116,9 +116,9 @@ if __name__=='__main__':
     parser.add_argument('--lr_lambda', default=0.95, type=float,
                         help="Lambda learning scheduler's lambda; Default is 0.95")
     # Training setting
-    parser.add_argument('--num_epochs', default=10, type=int, 
+    parser.add_argument('--num_epochs', default=50, type=int, 
                         help='Training epochs; Default is 10')
-    parser.add_argument('--num_workers', default=8, type=int, 
+    parser.add_argument('--num_workers', default=2, type=int, 
                         help='Num CPU Workers; Default is 8')
     parser.add_argument('--batch_size', default=16, type=int,    
                         help='Batch size; Default is 16')
@@ -137,7 +137,11 @@ if __name__=='__main__':
                         help='Beam search length normalization; Default is 0.7')
     parser.add_argument('--repetition_penalty', default=1.3, type=float, 
                         help='Beam search repetition penalty term; Default is 1.3')
-    # Print frequency
+    # Logging setting
+    parser.add_argument('--use_tensorboard', default=True, type=str2bool,
+                        help='Using tensorboard; Default is True')
+    parser.add_argument('--tensorboard_path', default='./tensorboard_runs', type=str,
+                        help='Tensorboard log path; Default is ./tensorboard_runs')
     parser.add_argument('--print_freq', default=100, type=int, 
                         help='Print training process frequency; Default is 100')
     args = parser.parse_args()
