@@ -1,6 +1,7 @@
 import os
 import time
 import h5py
+import pickle
 import logging
 import numpy as np
 # Import custom modules
@@ -87,27 +88,20 @@ def preprocessing(args):
     else:
         save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
 
-    p_file = h5py.File(os.path.join(save_path, save_name), 'w')
-    p_file.create_group('train')
-    p_file.create_group('valid')
-    # Input id write
-    p_file['train'].create_dataset('src_input_ids', data=np.array(processed_src['train']['input_ids']))
-    p_file['train'].create_dataset('trg_input_ids', data=np.array(processed_trg['train']['input_ids']))
-    p_file['valid'].create_dataset('src_input_ids', data=np.array(processed_src['valid']['input_ids']))
-    p_file['valid'].create_dataset('trg_input_ids', data=np.array(processed_trg['valid']['input_ids']))
-    # word2id write
-    p_file.create_dataset('src_word2id', data=word2id['src'])
-    p_file.create_dataset('src_word2id', data=word2id['src'])
-    p_file.close()
+    with h5py.File(os.path.join(save_path, save_name), 'w') as f:
+        f.create_dataset('train_src_input_ids', data=processed_src['train'])
+        f.create_dataset('train_trg_input_ids', data=processed_trg['train'])
+        f.create_dataset('valid_src_input_ids', data=processed_src['valid'])
+        f.create_dataset('valid_trg_input_ids', data=processed_trg['valid'])
 
-    t_file = h5py.File(os.path.join(save_path, 'test_' + save_name), 'w')
-    t_file.create_group('test')
-    # Input id write
-    t_file['test'].create_dataset('src_input_ids', data=list(processed_src['test']['input_ids']))
-    t_file['test'].create_dataset('trg_input_ids', data=list(processed_trg['test']['input_ids']))
-    # word2id write
-    t_file.create_dataset('src_word2id', data=word2id['src'])
-    t_file.create_dataset('trg_word2id', data=word2id['trg'])
-    t_file.close()
+    with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
+        f.create_dataset('test_src_input_ids', data=processed_src['test'])
+        f.create_dataset('test_trg_input_ids', data=processed_trg['test'])
+
+    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'wb') as f:
+        pickle.dump({
+            'src_word2id': word2id['src'],
+            'trg_word2id': word2id['trg']
+        }, f)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
