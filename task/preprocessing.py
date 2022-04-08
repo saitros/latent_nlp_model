@@ -1,7 +1,8 @@
 import os
 import time
-import pickle
+import h5py
 import logging
+import numpy as np
 # Import custom modules
 from model.tokenizer.spm_tokenize import spm_tokenizing
 from model.tokenizer.plm_tokenize import plm_tokenizeing
@@ -82,32 +83,31 @@ def preprocessing(args):
         os.mkdir(save_path)
 
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.pkl'
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
 
-    with open(os.path.join(save_path, save_name), 'wb') as f:
-        pickle.dump({
-            'train_src_indices': processed_src['train']['input_ids'],
-            'valid_src_indices': processed_src['valid']['input_ids'],
-            'train_trg_indices': processed_trg['train']['input_ids'],
-            'valid_trg_indices': processed_trg['valid']['input_ids'],
-            'train_src_att_mask': processed_src['train']['attention_mask'],
-            'valid_src_att_mask': processed_src['valid']['attention_mask'],
-            'train_trg_att_mask': processed_trg['train']['attention_mask'],
-            'valid_trg_att_mask': processed_trg['valid']['attention_mask'],
-            'src_word2id': word2id['src'],
-            'trg_word2id': word2id['trg']
-        }, f)
+    p_file = h5py.File(os.path.join(save_path, save_name), 'w')
+    p_file.create_group('train')
+    p_file.create_group('valid')
+    # Input id write
+    p_file['train'].create_dataset('src_input_ids', data=np.array(processed_src['train']['input_ids']))
+    p_file['train'].create_dataset('trg_input_ids', data=np.array(processed_trg['train']['input_ids']))
+    p_file['valid'].create_dataset('src_input_ids', data=np.array(processed_src['valid']['input_ids']))
+    p_file['valid'].create_dataset('trg_input_ids', data=np.array(processed_trg['valid']['input_ids']))
+    # word2id write
+    p_file.create_dataset('src_word2id', data=word2id['src'])
+    p_file.create_dataset('src_word2id', data=word2id['src'])
+    p_file.close()
 
-    with open(os.path.join(save_path, 'test_' + save_name), 'wb') as f:
-        pickle.dump({
-            'test_src_indices': processed_src['test']['input_ids'],
-            'test_trg_indices': processed_trg['test']['input_ids'],
-            'test_src_att_mask': processed_src['test']['attention_mask'],
-            'test_trg_att_mask': processed_trg['test']['attention_mask'],
-            'src_word2id': word2id['src'],
-            'trg_word2id': word2id['trg']
-        }, f)
+    t_file = h5py.File(os.path.join(save_path, 'test_' + save_name), 'w')
+    t_file.create_group('test')
+    # Input id write
+    t_file['test'].create_dataset('src_input_ids', data=list(processed_src['test']['input_ids']))
+    t_file['test'].create_dataset('trg_input_ids', data=list(processed_trg['test']['input_ids']))
+    # word2id write
+    t_file.create_dataset('src_word2id', data=word2id['src'])
+    t_file.create_dataset('trg_word2id', data=word2id['trg'])
+    t_file.close()
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')

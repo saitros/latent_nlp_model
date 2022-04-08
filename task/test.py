@@ -93,11 +93,9 @@ def testing(args):
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational=args.variational, parallel=args.parallel)
-        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     else:
         model = Bart(model_type=args.model_type, isPreTrain=args.isPreTrain,
                                        variational=args.variational, d_latent=args.d_latent)
-        tgt_subsqeunt_mask = None
 
     # loda model
     model = model.to(device)
@@ -135,6 +133,7 @@ def testing(args):
             # For last loop
             if src.size(0) != args.test_batch_size:
                 args.test_batch_size = src.size(0)
+                every_batch = torch.arange(0, args.beam_size * args.test_batch_size, args.beam_size, device=device)
 
             # Encoding
             encoder_out = model.src_embedding(src).transpose(0, 1) # (src_seq, batch_size, d_model)
