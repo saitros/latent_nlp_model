@@ -6,7 +6,7 @@ This project is an NLP project conducted by IIPL. This project, which intends to
 This code is written in Python. Dependencies include
 
 * python == 3.6
-* PyTorch == 1.6
+* PyTorch == 1.8
 * Transformers == 4.8.1
 
 ## Preprocessing

@@ -65,8 +65,7 @@ class Transformer(nn.Module):
         if self.variational:
             self.context_to_mu = nn.Linear(d_model, d_latent)
             self.context_to_logvar = nn.Linear(d_model, d_latent)
-            self.mu_to_context = nn.Linear(d_latent, d_model)
-            self.logvar_to_context = nn.Linear(d_latent, d_model)
+            self.z_to_context = nn.Linear(d_latent, d_model)
 
             self.kl_criterion = GaussianKLLoss()
 
@@ -80,8 +79,7 @@ class Transformer(nn.Module):
         if emb_src_trg_weight_sharing:
             self.src_embedding.token.weight = self.trg_embedding.token.weight
             
-    def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask,
-                non_pad_position=None, tgt_subsqeunt_mask=None):
+    def forward(self, src_input_ids, trg_input_ids, non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
         trg_input_ids_copy =  torch.clone(trg_input_ids)
@@ -129,16 +127,16 @@ class Transformer(nn.Module):
                 trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
                 trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
 
-                std = logvar.mul(0.5).exp_()
-                eps = Variable(std.data.new(std.size()).normal_())
-                z = eps.mul(std).add_(mu)
-
                 kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
 
-                mu = self.mu_to_context(src_mu)
-                logvar = self.logvar_to_context(src_logvar)
+                # Re-parameterization
+                std = src_logvar.mul(0.5).exp_()
+                eps = Variable(std.data.new(std.size()).normal_())
+                z = eps.mul(std).add_(src_mu)
 
-                encoder_out = torch.add(encoder_out, z)
+                resize_z = self.z_to_context(src_mu)
+
+                encoder_out = torch.add(encoder_out, resize_z)
             else:
                 kl = 0
 
