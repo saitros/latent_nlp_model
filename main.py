@@ -81,10 +81,10 @@ if __name__=='__main__':
                         help="Dropout ration; Default is 0.3")
     parser.add_argument('--embedding_dropout', default=0.1, type=float, 
                         help="Embedding dropout ration; Default is 0.1")
-    parser.add_argument('--num_encoder_layer', default=6, type=int, 
-                        help="Number of encoder layers; Default is 6")
-    parser.add_argument('--num_decoder_layer', default=6, type=int, 
-                        help="Number of decoder layers; Default is 6")
+    parser.add_argument('--num_encoder_layer', default=8, type=int, 
+                        help="Number of encoder layers; Default is 8")
+    parser.add_argument('--num_decoder_layer', default=8, type=int, 
+                        help="Number of decoder layers; Default is 8")
     parser.add_argument('--min_len', default=4, type=int, 
                         help="Sentences's minimum length; Default is 4")
     parser.add_argument('--src_max_len', default=300, type=int, 
@@ -93,8 +93,8 @@ if __name__=='__main__':
                         help="Target sentences's maximum length; Default is 300")
     parser.add_argument('--trg_emb_prj_weight_sharing', default=False, type=str2bool,
                         help='Weight sharing between decoder embedding and decoder linear; Default is False')
-    parser.add_argument('--emb_src_trg_weight_sharing', default=False, type=str2bool,
-                        help='Weight sharing between encoder embedding and decoder embedding; Default is False')
+    parser.add_argument('--emb_src_trg_weight_sharing', default=True, type=str2bool,
+                        help='Weight sharing between encoder embedding and decoder embedding; Default is True')
     parser.add_argument('--parallel', default=False, type=str2bool,
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
     parser.add_argument('--num_common_layer', default=6, type=int, 
