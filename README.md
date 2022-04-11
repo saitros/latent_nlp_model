@@ -5,9 +5,9 @@ This project is an NLP project conducted by IIPL. This project, which intends to
 
 This code is written in Python. Dependencies include
 
-* python == 3.6
+* Python == 3.6
 * PyTorch == 1.8
-* Transformers == 4.8.1
+* Transformers (Huggingface) == 4.8.1
 
 ### Usable Data
 * WMT 2014 translation task DE -> EN (--data_name=WMT2014_de_en)
@@ -37,6 +37,7 @@ python main.py --training
 
 ### Transformer
 Implementation of the Transformer model in "[Attention is All You Need](https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)" (Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser and Illia Polosukhin, NIPS 2017).
+
 Available options are model dimension (--d_model), embedding dimension (--d_embedding), multi-head attention's head count (--n_head), feed-forward layer dimension (--dim_feedforward), dropout ratio (--dropout), embedding dropout ratio (--embedding_dropout), number of encoder layers (--num_encoder_layer), number of decoder layers (--num_decoder_layer), weight sharing between decoder embedding and decoder linear layer (--trg_emb_prj_weight_sharing) and weight sharing between encoder embedding and decoder embedding (--emb_src_trg_weight_sharing).
 
 ```

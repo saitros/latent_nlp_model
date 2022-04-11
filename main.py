@@ -85,12 +85,6 @@ if __name__=='__main__':
                         help="Number of encoder layers; Default is 8")
     parser.add_argument('--num_decoder_layer', default=8, type=int, 
                         help="Number of decoder layers; Default is 8")
-    parser.add_argument('--min_len', default=4, type=int, 
-                        help="Sentences's minimum length; Default is 4")
-    parser.add_argument('--src_max_len', default=300, type=int, 
-                        help="Source sentences's maximum length; Default is 300")
-    parser.add_argument('--trg_max_len', default=300, type=int, 
-                        help="Target sentences's maximum length; Default is 300")
     parser.add_argument('--trg_emb_prj_weight_sharing', default=False, type=str2bool,
                         help='Weight sharing between decoder embedding and decoder linear; Default is False')
     parser.add_argument('--emb_src_trg_weight_sharing', default=True, type=str2bool,
@@ -116,6 +110,12 @@ if __name__=='__main__':
     parser.add_argument('--lr_lambda', default=0.95, type=float,
                         help="Lambda learning scheduler's lambda; Default is 0.95")
     # Training setting
+    parser.add_argument('--min_len', default=4, type=int, 
+                        help="Sentences's minimum length; Default is 4")
+    parser.add_argument('--src_max_len', default=300, type=int, 
+                        help="Source sentences's maximum length; Default is 300")
+    parser.add_argument('--trg_max_len', default=300, type=int, 
+                        help="Target sentences's maximum length; Default is 300")
     parser.add_argument('--num_epochs', default=10, type=int, 
                         help='Training epochs; Default is 10')
     parser.add_argument('--num_workers', default=8, type=int, 

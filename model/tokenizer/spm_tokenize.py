@@ -4,9 +4,10 @@ import sentencepiece as spm
 def pad_add(list_, max_len: int = 300):
     ind_list = list()
     for ind_ in list_:
-        ind = np.zeros(max_len, dtype=np.int32)
-        ind[:len(ind_)] = np.array(ind_, dtype=np.int32)
-        ind_list.append(ind)
+        if len(ind_) <= max_len:
+            ind = np.zeros(max_len, dtype=np.int32)
+            ind[:len(ind_)] = np.array(ind_, dtype=np.int32)
+            ind_list.append(ind)
     return np.array(ind_list, dtype=np.int32)
 
 def spm_tokenizing(src_sequences, trg_sequences, args):
