@@ -14,7 +14,6 @@ class CustomDataset(Dataset):
                 trg_tensor[:len(trg)] = torch.tensor(trg, dtype=torch.long)
                 self.tensor_list.append((src_tensor, trg_tensor))
 
-        self.tensor_list = np.array(self.tensor_list)
         self.num_data = len(self.tensor_list)
 
     def __getitem__(self, index):

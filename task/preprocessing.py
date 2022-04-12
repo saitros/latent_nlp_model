@@ -34,9 +34,12 @@ def preprocessing(args):
     trg_sequences = dict()
 
     if args.data_name == 'WMT2016_Multimodal':
-        args.data_path = os.path.join(args.data_path,'2016/multi_modal')
+        args.data_path = os.path.join(args.data_path,'WMT/2016/multi_modal')
         
     elif args.data_name == 'WMT2014_de_en':
+        args.data_path = os.path.join(args.data_path,'WMT/2014/de_en')
+
+    elif args.data_name == 'shift_challenge':
         args.data_path = os.path.join(args.data_path,'2014/de_en')
 
     # 1) Train data load
