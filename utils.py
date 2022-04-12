@@ -3,9 +3,12 @@ import os
 import sys
 import time
 import tqdm
+import random
 import logging
 import argparse
+import numpy as np
 # Import PyTorch
+import torch
 import torch.nn.functional as F
 
 def str2bool(v): 
@@ -55,18 +58,30 @@ def write_log(logger, message):
     if logger:
         logger.info(message)
 
-def get_tb_exp_name(args):
-    # Get experiment name for tensorboard visualization
+def get_tb_exp_name(args:argparse.Namespace):
+    """
+    Get the experiment name for tensorboard experiment.
+    """
 
     ts = time.strftime('%Y-%b-%d-%H:%M:%S', time.localtime())
 
     exp_name = str()
+    exp_name += "%s - " % args.model_name
 
-    exp_name += "BS=%i_" % args.batch_size 
-    if args.num_epochs is not None:
+    if args.training:
+        exp_name += 'TRAIN - '
+        exp_name += "BS=%i_" % args.batch_size 
         exp_name += "EP=%i_" % args.num_epochs
-    if args.lr is not None:
         exp_name += "LR=%.4f_" % args.lr
+    elif args.testing:
+        exp_name += 'TEST - '
+        exp_name += "BS=%i_" % args.batch_size
     exp_name += "TS=%s" % ts
 
     return exp_name
+
+def set_random_seed(seed:int):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)

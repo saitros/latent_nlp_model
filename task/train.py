@@ -207,7 +207,7 @@ def training(args):
                         writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
                         writer.add_scalar('CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
                         writer.add_scalar('RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('GPU_Usage', torch.cuda.memory_allocated() / 1048576, (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
+                        writer.add_scalar('GPU_Usage', torch.cuda.memory_allocated(device=device), (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
 
                 # Validation
                 if phase == 'valid':
@@ -248,9 +248,6 @@ def training(args):
                 if args.use_tensorboard:
                     writer.add_scalar('VALID/Loss', val_loss, epoch)
                     writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
-                    #writer.add_scalar('CPU_Usage', psutil.cpu_percent(), epoch)
-                    #writer.add_scalar('RAM_Usage', psutil.virtual_memory().percent, epoch)
-                    #writer.add_scalar('GPU_Usage', torch.cuda.memory_allocated() / 1048576, epoch) # MB Size
 
     # 3) Print results
     print(f'Best Epoch: {best_epoch}')

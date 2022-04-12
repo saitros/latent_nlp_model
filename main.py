@@ -6,9 +6,13 @@ from task.preprocessing import preprocessing
 from task.train import training
 from task.test import testing
 # Utils
-from utils import str2bool, path_check
+from utils import str2bool, path_check, set_random_seed
 
 def main(args):
+    # Set random seed
+    if args.seed is not None:
+        set_random_seed(args.seed)
+
     # Time setting
     total_start_time = time.time()
 
@@ -63,6 +67,8 @@ if __name__=='__main__':
                         help='Padding token index; Default is 2')
     # Model setting
     # 0) Model selection
+    parser.add_argument('--model_name', default='translator_basic', type=str,
+                        help='Model name; Default is translator_basic')
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
         'custom_transformer', 'bart', 'T5'
             ], help='Model type selection; Default is custom_transformer')
@@ -137,7 +143,9 @@ if __name__=='__main__':
                         help='Beam search length normalization; Default is 0.7')
     parser.add_argument('--repetition_penalty', default=1.3, type=float, 
                         help='Beam search repetition penalty term; Default is 1.3')
-    # Logging setting
+    # Seed & Logging setting
+    parser.add_argument('--seed', default=42, type=int,
+                        help='Random seed; Default is 42')
     parser.add_argument('--use_tensorboard', default=True, type=str2bool,
                         help='Using tensorboard; Default is True')
     parser.add_argument('--tensorboard_path', default='./tensorboard_runs', type=str,
