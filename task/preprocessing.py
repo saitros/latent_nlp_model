@@ -5,8 +5,8 @@ import pickle
 import logging
 import numpy as np
 # Import custom modules
-from model.tokenizer.spm_tokenize import spm_tokenizing
-from model.tokenizer.plm_tokenize import plm_tokenizeing
+from tokenizer.spm_tokenize import spm_tokenizing
+from tokenizer.plm_tokenize import plm_tokenizeing
 from utils import TqdmLoggingHandler, write_log
 
 def preprocessing(args):

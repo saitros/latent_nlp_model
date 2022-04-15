@@ -10,6 +10,8 @@ def shift_challenge_processing(args):
     with open(os.path.join(args.data_path, 'WikiMatrix.en-ru.txt.ru'), 'r') as f:
         wiki_matrix_ru = [x.replace('\n', '') for x in f.readlines()]
 
+    assert len(wiki_matrix_en) == len(wiki_matrix_ru)
+
     # Back-translated News (Need to pre-processing)
     with open('/HDD/dataset/shift_challenge/news.en', 'r') as f:
         news_en = [x.replace('\n', '') for x in f.readlines()]
@@ -30,5 +32,7 @@ def shift_challenge_processing(args):
 
     news_commentary_en = news_commentary['en']
     news_commentary_ru = news_commentary['ru']
+
+    assert len(news_commentary_en) == len(news_commentary_ru)
 
     # 
