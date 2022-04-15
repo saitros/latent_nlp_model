@@ -37,7 +37,7 @@ if __name__=='__main__':
     # Path setting
     parser.add_argument('--preprocess_path', default='./preprocessing', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='/HDD/dataset/WMT', type=str,
+    parser.add_argument('--data_path', default='/HDD/dataset', type=str,
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
