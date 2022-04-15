@@ -62,23 +62,6 @@ Available options are
 python main.py --training --d_model=768 --d_embedding=256 --n_head=16 --dim_feedforward=2048 --dropout=0.3 --embedding_dropout=0.1 --num_encoder_layer=8 --num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
 ```
 
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
 ## Deployment
 
 Add additional notes about how to deploy this on a live system
@@ -99,18 +82,12 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Authors
 
-* **Kyohoon Jin** - *Project Manager* - [Link](https://github.com/fhzh123)
-* **Jaeyoung Park** - *Sub Manager* - [Link]
+* **Kyohoon Jin** - *Project Manager* - [[Link]](https://github.com/fhzh123)
+* **Jaeyoung Park** - *Sub Manager* - [[Link]](https://github.com/jury124)
+* **Juhwan Choi** - *Enginner* - [[Link]](https://github.com/c-juhwan)
 
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/orgs/IIPL-CAU/people) who participated in this project.
 
-## License
+## Contact
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
-
+If you have any questions on our survey, please contact me via the following e-mail address: fhzh@naver.com or fhzh123@cau.ac.kr
