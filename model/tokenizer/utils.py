@@ -8,9 +8,9 @@ def shift_challenge_processing(args):
         wiki_matrix_en = [x.replace('\n', '') for x in f.readlines()]
 
     with open(os.path.join(args.data_path, 'WikiMatrix.en-ru.txt.ru'), 'r') as f:
-        wiki_matrix_en = [x.replace('\n', '') for x in f.readlines()]
+        wiki_matrix_ru = [x.replace('\n', '') for x in f.readlines()]
 
-    # News
+    # Back-translated News (Need to pre-processing)
     with open('/HDD/dataset/shift_challenge/news.en', 'r') as f:
         news_en = [x.replace('\n', '') for x in f.readlines()]
         
@@ -23,4 +23,12 @@ def shift_challenge_processing(args):
     with open('/HDD/dataset/shift_challenge/news.ru.translatedto.en', 'r') as f:
         news_ru_to_en = [x.replace('\n', '') for x in f.readlines()]
 
-    # W
+    # News Commentary (v15)
+    news_commentary = pd.read_csv(os.path.join(args.data_path, 'news-commentary-v15.en-ru.tsv'), 
+                                  sep='\t', names=['en', 'ru'])
+    news_commentary = news_commentary.dropna()
+
+    news_commentary_en = news_commentary['en']
+    news_commentary_ru = news_commentary['ru']
+
+    # 
