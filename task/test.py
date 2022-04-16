@@ -1,6 +1,7 @@
 # Import modules
 import os
 import gc
+import h5py
 import time
 import pickle
 import logging
@@ -46,30 +47,28 @@ def testing(args):
 
     save_path = os.path.join(args.preprocess_path, args.tokenizer)
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.pkl'
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
     
-    with open(os.path.join(save_path, 'test_' + save_name), 'rb') as f:
+    with h5py.File(os.path.join(save_path, 'test_' + save_name), 'r') as f:
+        test_src_input_ids = f.get('test_src_input_ids')[:]
+        test_trg_input_ids = f.get('test_trg_input_ids')[:]
+
+    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
-        test_src_indices = data_['test_src_indices']
-        test_trg_indices = data_['test_trg_indices']
-        # test_src_att_mask = data_['test_src_att_mask']
-        # test_trg_att_mask = data_['test_trg_att_mask']
-        test_src_att_mask = data_['train_src_att_mask']
-        test_trg_att_mask = data_['valid_src_att_mask']
         src_word2id = data_['src_word2id']
         trg_word2id = data_['trg_word2id']
         trg_id2word = {v: k for k, v in trg_word2id.items()}
         src_vocab_num = len(src_word2id)
         trg_vocab_num = len(trg_word2id)
         del data_
+
     gc.enable()
     write_log(logger, "Finished loading data!")
 
     # 2) Dataloader setting
-    test_dataset = CustomDataset(src_list=test_src_indices, trg_list=test_trg_indices,
-                                 src_att_mask_list=test_src_att_mask, trg_att_mask_list=test_trg_att_mask,
+    test_dataset = CustomDataset(src_list=test_src_input_ids, trg_list=test_trg_input_ids,
                                  min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len)
     test_dataloader = DataLoader(test_dataset, drop_last=False, batch_size=args.test_batch_size, shuffle=False,
                                  pin_memory=True, num_workers=args.num_workers)
@@ -121,11 +120,10 @@ def testing(args):
 
     # Beam search
     with torch.no_grad():
-        for i, (src, src_att, trg, _) in enumerate(tqdm(test_dataloader)):
+        for i, (src, trg) in enumerate(tqdm(test_dataloader)):
 
             # Input, output setting
             src = src.to(device, non_blocking=True)
-            src_att = src_att.to(device, non_blocking=True)
             label_list.extend(trg.tolist())
             src_seq_size = src.size(1)
             encoder_out_dict = defaultdict(list)
