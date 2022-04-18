@@ -264,9 +264,13 @@ def testing(args):
                 real = spm_trg.DecodeIds(trg.tolist()[i])
                 real_token = [trg_id2word[ix] for ix in trg.tolist()[i]]
                 # File writing
-                with open('./prediction_text.txt', 'a') as f:
+                detail_path = f'{args.data_name}_{args.tokenizer}_{args.sentencepiece_model}_{args.model_type}_{args.src_vocab_size}_{args.trg_vocab_size}'
+                save_result_path = os.path.join(args.result_path, detail_path)
+                if not os.path.exists(save_result_path):
+                    os.mkdir(save_result_path)
+                with open(os.path.join(save_result_path, 'prediction_text.txt'), 'a') as f:
                     f.write(pred + '\n')
-                with open('./label_text.txt', 'a') as f:
+                with open(os.path.join(save_result_path, 'label_text.txt'), 'a') as f:
                     f.write(real + '\n')
                 # Append for BLEU calculate
                 reference_token.append([real_token])

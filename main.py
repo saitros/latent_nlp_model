@@ -43,6 +43,8 @@ if __name__=='__main__':
                         help='Data name; Default is WMT2016_Multimodal')
     parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
+    parser.add_argument('--result_path', default='./results', type=str,
+                        help='Results file path')               
     # Preprocessing setting
     parser.add_argument('--tokenizer', default='spm', choices=[
         'spm', 'bert', 'bart', 'T5'

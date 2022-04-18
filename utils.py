@@ -24,6 +24,9 @@ def path_check(args):
     if not os.path.exists(args.save_path):
         os.mkdir(args.save_path)
 
+    if not os.path.exists(args.result_path):
+        os.mkdir(args.result_path)
+
 class TqdmLoggingHandler(logging.Handler):
     def __init__(self, level=logging.DEBUG):
         super().__init__(level)
