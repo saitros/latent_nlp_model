@@ -120,7 +120,7 @@ def testing(args):
 
     # Beam search
     with torch.no_grad():
-        for i, (src, trg) in enumerate(tqdm(test_dataloader)):
+        for i, (src, trg) in enumerate(tqdm(test_dataloader, bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
             # Input, output setting
             src = src.to(device, non_blocking=True)

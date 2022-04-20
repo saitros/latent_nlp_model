@@ -70,11 +70,11 @@ class Transformer(nn.Module):
             self.kl_criterion = GaussianKLLoss()
 
         # Weight sharing
-        self.x_logit_scale = 1.
-        if trg_emb_prj_weight_sharing:
-            # Share the weight between target word embedding & last dense layer
-            self.trg_output_linear2.weight = self.trg_embedding.token.weight
-            self.x_logit_scale = (d_model ** -0.5)
+        # self.x_logit_scale = 1.
+        # if trg_emb_prj_weight_sharing:
+        #     # Share the weight between target word embedding & last dense layer
+        #     self.trg_output_linear2.weight = self.trg_embedding.token.weight
+        #     self.x_logit_scale = (d_model ** -0.5)
 
         if emb_src_trg_weight_sharing:
             self.src_embedding.token.weight = self.trg_embedding.token.weight
@@ -151,7 +151,7 @@ class Transformer(nn.Module):
 
         decoder_out = self.trg_output_norm(self.dropout(F.gelu(self.trg_output_linear(decoder_out))))
         decoder_out = self.trg_output_linear2(decoder_out)
-        decoder_out = decoder_out * self.x_logit_scale
+        # decoder_out = decoder_out * self.x_logit_scale
         return decoder_out, kl
 
     @staticmethod

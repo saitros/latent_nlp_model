@@ -6,3 +6,4 @@ preprocessing/
 *.txt
 *.pkl
 *.hdf5
+*.csv

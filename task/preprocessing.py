@@ -7,6 +7,7 @@ import numpy as np
 # Import custom modules
 from tokenizer.spm_tokenize import spm_tokenizing
 from tokenizer.plm_tokenize import plm_tokenizeing
+from tokenizer.spacy_tokenize import spacy_tokenizing
 from utils import TqdmLoggingHandler, write_log
 
 def preprocessing(args):
@@ -69,6 +70,8 @@ def preprocessing(args):
 
     if args.tokenizer == 'spm':
         processed_src, processed_trg, word2id = spm_tokenizing(src_sequences, trg_sequences, args)
+    elif args.tokenizer == 'spacy':
+        processed_src, processed_trg, word2id = spacy_tokenizing(src_sequences, trg_sequences, args)
     else:
         processed_src, processed_trg, word2id = plm_tokenizeing(src_sequences, trg_sequences, args)
 
