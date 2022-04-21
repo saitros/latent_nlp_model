@@ -162,10 +162,9 @@ def testing(args):
             # Latent variable concat (Need re-checking)
             # Source sentence latent mapping
             if args.variational:
-                src_mu = model.context_to_mu(encoder_out)
-                z = model.mu_to_context(src_mu)
-                encoder_out = torch.cat([encoder_out, z], dim=2)
-                encoder_out = model.latent_to_decoder(encoder_out)
+                z = model.context_to_mu(encoder_out)
+                src_context = model.z_to_context(z)
+                encoder_out = torch.add(encoder_out, src_context)
 
             # Scores save vector & decoding list setting
             scores_save = torch.zeros(args.beam_size * args.test_batch_size, 1).to(device) # (batch_size * k, 1)
