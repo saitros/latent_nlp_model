@@ -2,9 +2,9 @@
 import time
 import argparse
 # Import custom modules
-from task.preprocessing import preprocessing
-from task.train import training
-from task.test import testing
+from task.translation.preprocessing import preprocessing
+from task.translation.train import training
+from task.translation.test import testing
 # Utils
 from utils import str2bool, path_check
 
@@ -15,14 +15,15 @@ def main(args):
     # Path setting
     path_check(args)
 
-    if args.preprocessing:
-        preprocessing(args)
+    if args.task == 'translation':
+        if args.preprocessing:
+            preprocessing(args)
 
-    if args.training:
-        training(args)
+        if args.training:
+            training(args)
 
-    if args.testing:
-        testing(args)
+        if args.testing:
+            testing(args)
 
     # Time calculate
     print(f'Done! ; {round((time.time()-total_start_time)/60, 3)}min spend')
@@ -30,6 +31,8 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
+    parser.add_argument('--task', default='translation', choices=['translation','style_transfer'],
+                        help='')
     parser.add_argument('--preprocessing', action='store_true')
     parser.add_argument('--training', action='store_true')
     parser.add_argument('--testing', action='store_true')

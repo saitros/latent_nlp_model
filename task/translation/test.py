@@ -94,7 +94,7 @@ def testing(args):
                             variational=args.variational, parallel=args.parallel)
     else:
         model = Bart(model_type=args.model_type, isPreTrain=args.isPreTrain,
-                                       variational=args.variational, d_latent=args.d_latent)
+                     variational=args.variational, d_latent=args.d_latent)
 
     # loda model
     model = model.to(device)
