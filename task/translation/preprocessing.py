@@ -34,20 +34,27 @@ def preprocessing(args):
     src_sequences = dict()
     trg_sequences = dict()
 
-    if args.data_name == 'WMT2016_Multimodal':
-        args.data_path = os.path.join(args.data_path,'WMT/2016/multi_modal')
-        
-    elif args.data_name == 'WMT2014_de_en':
-        args.data_path = os.path.join(args.data_path,'WMT/2014/de_en')
-
-    elif args.data_name == 'shift_challenge':
-        args.data_path = os.path.join(args.data_path,'shift_challeng')
+    if args.data_name == 'GYAFC':
+        args.data_path = os.path.join(args.data_path,'GYAFC_Corpus')
 
     # 1) Train data load
-    with open(os.path.join(args.data_path, 'train.de'), 'r') as f:
-        src_sequences['train'] = [x.replace('\n', '') for x in f.readlines()]
-    with open(os.path.join(args.data_path, 'train.en'), 'r') as f:
-        trg_sequences['train'] = [x.replace('\n', '') for x in f.readlines()]
+    with open(os.path.join(args.data_path, 'Entertainment_Music/train/informal_em_train.txt'), 'r') as f:
+        music_src_train = [x.replace('\n', '') for x in f.readlines()]
+    with open(os.path.join(args.data_path, 'Entertainment_Music/train/formal_em_train.txt'), 'r') as f:
+        music_trg_train = [x.replace('\n', '') for x in f.readlines()]
+
+    with open(os.path.join(args.data_path, 'Family_Relationships/train/informal_em_train.txt'), 'r') as f:
+        family_src_train = [x.replace('\n', '') for x in f.readlines()]
+    with open(os.path.join(args.data_path, 'Family_Relationships/train/formal_em_train.txt'), 'r') as f:
+        family_trg_train = [x.replace('\n', '') for x in f.readlines()]
+
+    assert len(music_src_train) == len(music_trg_train)
+    assert len(family_src_train) == len(family_trg_train)
+
+    # 2) Train & Valid split
+    paired_data_len = len(music_src_train + family_src_train)
+    valid_index = np.random.choice(paired_data_len, int(paired_data_len*0.2), replace=False)
+    train_index = list(set(range(paired_data_len)) - set(valid_index))
 
     # 2) Valid data load
     with open(os.path.join(args.data_path, 'val.de'), 'r') as f:
