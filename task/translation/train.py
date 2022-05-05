@@ -1,7 +1,7 @@
 # Import modules
 import os
 import gc
-import psutil
+import h5py
 import pickle
 import logging
 from tqdm import tqdm
@@ -12,14 +12,13 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
-from torch.utils.tensorboard import SummaryWriter
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
 from model.plm.bart import Bart
 from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
-from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
+from utils import TqdmLoggingHandler, write_log
 
 def training(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,10 +34,6 @@ def training(args):
     logger.addHandler(handler)
     logger.propagate = False
 
-    if args.use_tensorboard:
-        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
-        writer.add_text('args', str(args))
-
     write_log(logger, 'Start training!')
 
     #===================================#
@@ -51,36 +46,33 @@ def training(args):
 
     save_path = os.path.join(args.preprocess_path, args.tokenizer)
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.pkl'
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
 
-    with open(os.path.join(save_path, save_name), 'rb') as f:
+    with h5py.File(os.path.join(save_path, save_name), 'r') as f:
+        train_src_input_ids = f.get('train_src_input_ids')[:]
+        train_trg_input_ids = f.get('train_trg_input_ids')[:]
+        valid_src_input_ids = f.get('valid_src_input_ids')[:]
+        valid_trg_input_ids = f.get('valid_trg_input_ids')[:]
+
+    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
-        train_src_indices = data_['train_src_indices']
-        valid_src_indices = data_['valid_src_indices']
-        train_src_att_mask = data_['train_src_att_mask']
-        valid_src_att_mask = data_['valid_src_att_mask']
-        train_trg_indices = data_['train_trg_indices']
-        valid_trg_indices = data_['valid_trg_indices']
-        train_trg_att_mask = data_['train_src_att_mask']
-        valid_trg_att_mask = data_['valid_src_att_mask']
         src_word2id = data_['src_word2id']
         trg_word2id = data_['trg_word2id']
         src_vocab_num = len(src_word2id)
         trg_vocab_num = len(trg_word2id)
         del data_
+
     gc.enable()
     write_log(logger, "Finished loading data!")
 
     # 2) Dataloader setting
     dataset_dict = {
-        'train': CustomDataset(src_list=train_src_indices, trg_list=train_trg_indices, 
-                            src_att_mask_list=train_src_att_mask, trg_att_mask_list=train_trg_att_mask,
-                            min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-        'valid': CustomDataset(src_list=valid_src_indices, trg_list=valid_trg_indices,
-                            src_att_mask_list=valid_src_att_mask, trg_att_mask_list=valid_trg_att_mask,
-                            min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
+        'train': CustomDataset(src_list=train_src_input_ids, trg_list=train_trg_input_ids, 
+                               min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
+        'valid': CustomDataset(src_list=valid_src_input_ids, trg_list=valid_trg_input_ids,
+                               min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
     }
     dataloader_dict = {
         'train': DataLoader(dataset_dict['train'], drop_last=True,
@@ -152,29 +144,28 @@ def training(args):
                 val_loss = 0
                 val_acc = 0
                 model.eval()
-            for i, (src, src_att, trg, trg_att) in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
+            for i, (src_sequence, trg_sequence) in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
                 # Optimizer setting
                 optimizer.zero_grad(set_to_none=True)
 
                 # Input, output setting
-                src = src.to(device, non_blocking=True)
-                src_att = src_att.to(device, non_blocking=True)
-                trg = trg.to(device, non_blocking=True)
-                trg_att = trg_att.to(device, non_blocking=True)
+                src_sequence = src_sequence.to(device, non_blocking=True)
+                trg_sequence = trg_sequence.to(device, non_blocking=True)
 
-                trg_target = trg[:, 1:]
-                non_pad = trg_target != args.pad_id
-                trg_target = trg_target[non_pad].contiguous().view(-1)
+                # Output pre-processing
+                trg_sequence_gold = trg_sequence[:, 1:]
+                non_pad = trg_sequence_gold != args.pad_id
+                trg_sequence_gold = trg_sequence_gold[non_pad].contiguous().view(-1)
 
                 # Train
                 if phase == 'train':
 
                     with autocast():
-                        predicted, kl = model(
-                            src, src_att, trg, trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                        predicted, kl = model(src_sequence, trg_sequence, 
+                                              non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_target, trg_pad_idx=args.pad_id)
+                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
                         total_loss = nmt_loss + kl
 
                     scaler.scale(total_loss).backward()
@@ -191,7 +182,7 @@ def training(args):
 
                     # Print loss value only training
                     if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
-                        acc = (predicted.max(dim=1)[1] == trg_target).sum() / len(trg_target)
+                        acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.3f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
                             total_loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
@@ -200,24 +191,15 @@ def training(args):
                         freq = 0
                     freq += 1
 
-                    if args.use_tensorboard:
-                        acc = (predicted.max(dim=1)[1] == trg_target).sum() / len(trg_target)
-                        
-                        writer.add_scalar('TRAIN/Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('GPU_Usage', torch.cuda.memory_allocated(device=device), (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
-
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
-                        predicted, kl = model(
-                            src, src_att, trg, trg_att, non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        nmt_loss = F.cross_entropy(predicted, trg_target)
+                        predicted, kl = model(src_sequence, trg_sequence, 
+                                              non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold)
                         total_loss = nmt_loss + kl
                     val_loss += total_loss.item()
-                    val_acc += (predicted.max(dim=1)[1] == trg_target).sum() / len(trg_target)
+                    val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
                     if args.scheduler == 'reduce_valid':
                         scheduler.step(val_loss)
                     if args.scheduler == 'lambda':
@@ -244,10 +226,6 @@ def training(args):
                 else:
                     else_log = f'Still {best_epoch} epoch accuracy({round(best_val_acc.item()*100, 2)})% is better...'
                     write_log(logger, else_log)
-
-                if args.use_tensorboard:
-                    writer.add_scalar('VALID/Loss', val_loss, epoch)
-                    writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
 
     # 3) Print results
     print(f'Best Epoch: {best_epoch}')
