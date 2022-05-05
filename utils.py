@@ -30,6 +30,8 @@ def path_check(args):
 
     if not os.path.exists(args.tensorboard_path):
         os.mkdir(args.tensorboard_path)
+    if not os.path.exists(args.result_path):
+        os.mkdir(args.result_path)
 
 class TqdmLoggingHandler(logging.Handler):
     def __init__(self, level=logging.DEBUG):

@@ -1,10 +1,13 @@
 import os
 import time
+import h5py
 import pickle
 import logging
+import numpy as np
 # Import custom modules
-from model.tokenizer.spm_tokenize import spm_tokenizing
-from model.tokenizer.plm_tokenize import plm_tokenizeing
+from tokenizer.spm_tokenize import spm_tokenizing
+from tokenizer.plm_tokenize import plm_tokenizeing
+from tokenizer.spacy_tokenize import spacy_tokenizing
 from utils import TqdmLoggingHandler, write_log
 
 def preprocessing(args):
@@ -32,10 +35,13 @@ def preprocessing(args):
     trg_sequences = dict()
 
     if args.data_name == 'WMT2016_Multimodal':
-        args.data_path = os.path.join(args.data_path,'2016/multi_modal')
+        args.data_path = os.path.join(args.data_path,'WMT/2016/multi_modal')
         
     elif args.data_name == 'WMT2014_de_en':
-        args.data_path = os.path.join(args.data_path,'2014/de_en')
+        args.data_path = os.path.join(args.data_path,'WMT/2014/de_en')
+
+    elif args.data_name == 'shift_challenge':
+        args.data_path = os.path.join(args.data_path,'shift_challeng')
 
     # 1) Train data load
     with open(os.path.join(args.data_path, 'train.de'), 'r') as f:
@@ -64,6 +70,8 @@ def preprocessing(args):
 
     if args.tokenizer == 'spm':
         processed_src, processed_trg, word2id = spm_tokenizing(src_sequences, trg_sequences, args)
+    elif args.tokenizer == 'spacy':
+        processed_src, processed_trg, word2id = spacy_tokenizing(src_sequences, trg_sequences, args)
     else:
         processed_src, processed_trg, word2id = plm_tokenizeing(src_sequences, trg_sequences, args)
 
@@ -82,30 +90,22 @@ def preprocessing(args):
         os.mkdir(save_path)
 
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.pkl'
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.pkl'
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
 
-    with open(os.path.join(save_path, save_name), 'wb') as f:
-        pickle.dump({
-            'train_src_indices': processed_src['train']['input_ids'],
-            'valid_src_indices': processed_src['valid']['input_ids'],
-            'train_trg_indices': processed_trg['train']['input_ids'],
-            'valid_trg_indices': processed_trg['valid']['input_ids'],
-            'train_src_att_mask': processed_src['train']['attention_mask'],
-            'valid_src_att_mask': processed_src['valid']['attention_mask'],
-            'train_trg_att_mask': processed_trg['train']['attention_mask'],
-            'valid_trg_att_mask': processed_trg['valid']['attention_mask'],
-            'src_word2id': word2id['src'],
-            'trg_word2id': word2id['trg']
-        }, f)
+    with h5py.File(os.path.join(save_path, save_name), 'w') as f:
+        f.create_dataset('train_src_input_ids', data=processed_src['train'])
+        f.create_dataset('train_trg_input_ids', data=processed_trg['train'])
+        f.create_dataset('valid_src_input_ids', data=processed_src['valid'])
+        f.create_dataset('valid_trg_input_ids', data=processed_trg['valid'])
 
-    with open(os.path.join(save_path, 'test_' + save_name), 'wb') as f:
+    with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
+        f.create_dataset('test_src_input_ids', data=processed_src['test'])
+        f.create_dataset('test_trg_input_ids', data=processed_trg['test'])
+
+    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'wb') as f:
         pickle.dump({
-            'test_src_indices': processed_src['test']['input_ids'],
-            'test_trg_indices': processed_trg['test']['input_ids'],
-            'test_src_att_mask': processed_src['test']['attention_mask'],
-            'test_trg_att_mask': processed_trg['test']['attention_mask'],
             'src_word2id': word2id['src'],
             'trg_word2id': word2id['trg']
         }, f)

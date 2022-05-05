@@ -1,25 +1,35 @@
 # IIPL Latent-variable machine translation project
 This project is an NLP project conducted by IIPL. This project, which intends to apply latent-variables to various fields of NLP, aims to improve the performance of various NLP tasks such as low-resource machine translation, text style transfer, and dataset shift.
 
-## Dependencies
+### Dependencies
 
 This code is written in Python. Dependencies include
 
-* python == 3.6
-* PyTorch == 1.6
-* Transformers == 4.8.1
+* Python == 3.6
+* PyTorch == 1.8
+* Transformers (Huggingface) == 4.8.1
+
+### Usable Data
+* WMT 2014 translation task DE -> EN (--data_name=WMT2014_de_en)
+* WMT 2016 multimodal DE -> EN (--data_name=WMT2016_Multimodal)
 
 ## Preprocessing
 
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
+Before training the model, it needs to go through a preprocessing step. Preprocessing is performed through the '--preprocessing' option and the pickle file of the set data is saved in the preprocessing path (--preprocessing_path).
 
 ```
 python main.py --preprocessing
 ```
 
-Available options are tokenizer(--tokenizer), SentencePiece model type(--sentencepiece_model; If tokenizer is spm),  source text vocabulary size(--src_vocab_size), target text vocabulary size(--trg_vocab_size), padding token id(--pad_id), unknown token id(--unk_id), start token id(--bos_id) and end token id(--eos_id).
+Available options are 
+* tokenizer (--tokenizer)
+* SentencePiece model type (--sentencepiece_model; If tokenizer is spm)
+* source text vocabulary size (--src_vocab_size)
+* target text vocabulary size (--trg_vocab_size)
+* padding token id (--pad_id)
+* unknown token id (--unk_id)
+* start token id (--bos_id)
+* end token id (--eos_id)
 
 ```
 python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram --src_vocab_size=8000 --trg_vocab_size=8000 --pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
@@ -27,55 +37,42 @@ python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram --s
 
 ## Training
 
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
+To train the model, add the training (--training) option. Currently, only the Transformer model is available, but RNN and Pre-trained Language Model will be added in the future.
 
 ```
-Give an example
+python main.py --training
 ```
 
-### And coding style tests
+### Transformer
+Implementation of the Transformer model in "[Attention is All You Need](https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)" (Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser and Illia Polosukhin, NIPS 2017).
 
-Explain what these tests test and why
+Available options are 
+* model dimension (--d_model)
+* embedding dimension (--d_embedding)
+* multi-head attention's head count (--n_head)
+* feed-forward layer dimension (--dim_feedforward)
+* dropout ratio (--dropout)
+* embedding dropout ratio (--embedding_dropout)
+* number of encoder layers (--num_encoder_layer)
+* number of decoder layers (--num_decoder_layer)
+* weight sharing between decoder embedding and decoder linear layer (--trg_emb_prj_weight_sharing)
+* weight sharing between encoder embedding and decoder embedding (--emb_src_trg_weight_sharing)
 
 ```
-Give an example
+python main.py --training --d_model=768 --d_embedding=256 --n_head=16 --dim_feedforward=2048 --dropout=0.3 --embedding_dropout=0.1 --num_encoder_layer=8 --num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
 ```
 
-## Deployment
-
-Add additional notes about how to deploy this on a live system
-
-## Built With
-
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
-
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
+### Bart
+Implementation of the Bart model in "[BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension](https://arxiv.org/pdf/1910.13461.pdf)" (Mike Lewis, Yinhan Liu, Naman Goyal, Marjan Ghazvininejad, Abdelrahman Mohamed, Omer Levy, Ves Stoyanov and Luke Zettlemoyer, ACL 2020).
 
 ## Authors
 
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
+* **Kyohoon Jin** - *Project Manager* - [[Link]](https://github.com/fhzh123)
+* **Jaeyoung Park** - *Sub Manager* - [[Link]](https://github.com/jury124)
+* **Juhwan Choi** - *Enginner* - [[Link]](https://github.com/c-juhwan)
 
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/orgs/IIPL-CAU/people) who participated in this project.
 
-## License
+## Contact
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
-
+If you have any questions on our survey, please contact me via the following e-mail address: fhzh@naver.com or fhzh123@cau.ac.kr

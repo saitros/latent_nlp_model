@@ -5,3 +5,6 @@ preprocessing/
 tensorboard_runs/
 *.ipynb
 *.txt
+*.pkl
+*.hdf5
+*.csv

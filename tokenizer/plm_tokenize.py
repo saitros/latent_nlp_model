@@ -20,6 +20,7 @@ def plm_tokenizeing(src_sequences, trg_sequences, args):
             truncation=True
         )
 
+    # 이 부분 수정 필요 => BART는 model.config.decoder_start_token_id로 시작해야함
     for phase in ['train', 'valid', 'test']:
         processed_trg[phase] = \
         tokenizer(
