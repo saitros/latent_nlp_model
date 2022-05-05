@@ -68,6 +68,7 @@ def get_tb_exp_name(args:argparse.Namespace):
     ts = time.strftime('%Y-%b-%d-%H:%M:%S', time.localtime())
 
     exp_name = str()
+    exp_name += "%s - " % args.task
     exp_name += "%s - " % args.model_name
 
     if args.training:
