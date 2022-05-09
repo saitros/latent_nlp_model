@@ -45,7 +45,7 @@ def testing(args):
     write_log(logger, "Load data...")
     gc.disable()
 
-    save_path = os.path.join(args.preprocess_path, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
     if args.tokenizer == 'spm':
         save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
@@ -106,7 +106,7 @@ def testing(args):
     # load sentencepiece model
     write_log(logger, "Load SentencePiece model")
     spm_trg = spm.SentencePieceProcessor()
-    spm_trg.Load(f'{args.preprocess_path}/m_trg_{args.trg_vocab_size}.model')
+    spm_trg.Load(f'{args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size}.model')
 
     # Pre-setting
     predicted_list = list()

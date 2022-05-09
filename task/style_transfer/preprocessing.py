@@ -39,14 +39,39 @@ def preprocessing(args):
 
     # 1) Train data load
     with open(os.path.join(args.data_path, 'Entertainment_Music/train/informal_em_train.txt'), 'r') as f:
-        music_src_train = [x.replace('\n', '') for x in f.readlines()]
+        music_src = [x.replace('\n', '') for x in f.readlines()]
     with open(os.path.join(args.data_path, 'Entertainment_Music/train/formal_em_train.txt'), 'r') as f:
-        music_trg_train = [x.replace('\n', '') for x in f.readlines()]
+        music_trg = [x.replace('\n', '') for x in f.readlines()]
 
-    with open(os.path.join(args.data_path, 'Family_Relationships/train/informal_em_train.txt'), 'r') as f:
-        family_src_train = [x.replace('\n', '') for x in f.readlines()]
-    with open(os.path.join(args.data_path, 'Family_Relationships/train/formal_em_train.txt'), 'r') as f:
-        family_trg_train = [x.replace('\n', '') for x in f.readlines()]
+    with open(os.path.join(args.data_path, 'Family_Relationships/train/informal_fr_train.txt'), 'r') as f:
+        family_src = [x.replace('\n', '') for x in f.readlines()]
+    with open(os.path.join(args.data_path, 'Family_Relationships/train/formal_fr_train.txt'), 'r') as f:
+        family_trg = [x.replace('\n', '') for x in f.readlines()]
+
+    assert len(music_src) == len(music_trg)
+    assert len(family_src) == len(family_trg)
+
+    record_list_src = music_src + family_src
+    record_list_trg = music_trg + family_trg
+
+    # 2) Data split
+    paired_data_len = len(record_list_src)
+    valid_num = int(paired_data_len * 0.15)
+    test_num = int(paired_data_len * 0.1)
+
+    valid_index = np.random.choice(paired_data_len, valid_num, replace=False)
+    train_index = list(set(range(paired_data_len)) - set(valid_index))
+    test_index = np.random.choice(train_index, test_num, replace=False)
+    train_index = list(set(train_index) - set(test_index))
+
+    src_sequences['train'] = [record_list_src[i] for i in train_index]
+    trg_sequences['train'] = [record_list_trg[i] for i in train_index]
+
+    src_sequences['valid'] = [record_list_src[i] for i in valid_index]
+    trg_sequences['valid'] = [record_list_trg[i] for i in valid_index]
+
+    src_sequences['test'] = [record_list_src[i] for i in test_index]
+    trg_sequences['test'] = [record_list_trg[i] for i in test_index]
 
     #===================================#
     #==========Pre-processing===========#
@@ -72,7 +97,7 @@ def preprocessing(args):
     start_time = time.time()
 
     # Path checking
-    save_path = os.path.join(args.preprocess_path, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 

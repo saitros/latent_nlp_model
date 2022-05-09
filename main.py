@@ -2,9 +2,12 @@
 import time
 import argparse
 # Import custom modules
-from task.translation.preprocessing import preprocessing
-from task.translation.train import training
-from task.translation.test import testing
+from task.translation.preprocessing import preprocessing as nmt_preprocessing
+from task.translation.train import training as nmt_training
+from task.translation.test import testing as nmt_testing
+from task.style_transfer.preprocessing import preprocessing
+from task.style_transfer.train import training
+from task.style_transfer.test import testing
 # Utils
 from utils import str2bool, path_check
 
@@ -16,6 +19,16 @@ def main(args):
     path_check(args)
 
     if args.task == 'translation':
+        if args.preprocessing:
+            nmt_preprocessing(args)
+
+        if args.training:
+            nmt_training(args)
+
+        if args.testing:
+            nmt_testing(args)
+
+    if args.task == 'style_transfer':
         if args.preprocessing:
             preprocessing(args)
 
@@ -54,10 +67,10 @@ if __name__=='__main__':
             ], help='Tokenizer select; Default is spm')
     parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
                         help="Google's SentencePiece model type; Default is unigram")
-    parser.add_argument('--src_vocab_size', default=8000, type=int,
-                        help='Source text vocabulary size; Default is 8000')
-    parser.add_argument('--trg_vocab_size', default=8000, type=int,
-                        help='Source text vocabulary size; Default is 8000')
+    parser.add_argument('--src_vocab_size', default=3600, type=int,
+                        help='Source text vocabulary size; Default is 3600')
+    parser.add_argument('--trg_vocab_size', default=3600, type=int,
+                        help='Source text vocabulary size; Default is 3600')
     parser.add_argument('--pad_id', default=0, type=int,
                         help='Padding token index; Default is 0')
     parser.add_argument('--unk_id', default=3, type=int,
@@ -78,8 +91,8 @@ if __name__=='__main__':
                         help='Transformer model dimension; Default is 768')
     parser.add_argument('--d_embedding', default=256, type=int, 
                         help='Transformer embedding word token dimension; Default is 256')
-    parser.add_argument('--n_head', default=16, type=int, 
-                        help="Multihead Attention's head count; Default is 16")
+    parser.add_argument('--n_head', default=12, type=int, 
+                        help="Multihead Attention's head count; Default is 12")
     parser.add_argument('--dim_feedforward', default=2048, type=int, 
                         help="Feedforward network's dimension; Default is 2048")
     parser.add_argument('--dropout', default=0.3, type=float, 
@@ -121,8 +134,8 @@ if __name__=='__main__':
                         help="Source sentences's maximum length; Default is 300")
     parser.add_argument('--trg_max_len', default=300, type=int, 
                         help="Target sentences's maximum length; Default is 300")
-    parser.add_argument('--num_epochs', default=10, type=int, 
-                        help='Training epochs; Default is 10')
+    parser.add_argument('--num_epochs', default=100, type=int, 
+                        help='Training epochs; Default is 100')
     parser.add_argument('--num_workers', default=8, type=int, 
                         help='Num CPU Workers; Default is 8')
     parser.add_argument('--batch_size', default=16, type=int,    

@@ -16,25 +16,25 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     processed_src, processed_trg, word2id = dict(), dict(), dict()
 
     # Make text to train vocab
-    with open(f'{args.preprocess_path}/src.txt', 'w') as f:
+    with open(f'{args.preprocess_path}/{args.task}/src.txt', 'w') as f:
         for text in src_sequences['train']:
             f.write(f'{text}\n')
 
     spm.SentencePieceProcessor()
     spm.SentencePieceTrainer.Train(
-        f'--input={args.preprocess_path}/src.txt --model_prefix={args.preprocess_path}/m_src_{args.src_vocab_size} '
+        f'--input={args.preprocess_path}/{args.task}/src.txt --model_prefix={args.preprocess_path}/{args.task}/m_src_{args.src_vocab_size} '
         f'--vocab_size={args.src_vocab_size} --character_coverage=0.9995 --split_by_whitespace=true '
         f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
         f'--model_type={args.sentencepiece_model}')
 
     src_vocab = list()
-    with open(f'{args.preprocess_path}/m_src_{args.src_vocab_size}.vocab') as f:
+    with open(f'{args.preprocess_path}/{args.task}/m_src_{args.src_vocab_size}.vocab') as f:
         for line in f:
             src_vocab.append(line[:-1].split('\t')[0])
 
     word2id['src'] = {w: i for i, w in enumerate(src_vocab)}
     spm_src = spm.SentencePieceProcessor()
-    spm_src.Load(f'{args.preprocess_path}/m_src_{args.src_vocab_size}.model')
+    spm_src.Load(f'{args.preprocess_path}/{args.task}/m_src_{args.src_vocab_size}.model')
 
     # Encoding
     train_src_input_ids = tuple(
@@ -57,25 +57,25 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     # 2) Target lanugage
 
     # Make text to train vocab
-    with open(f'{args.preprocess_path}/trg.txt', 'w') as f:
+    with open(f'{args.preprocess_path}/{args.task}/trg.txt', 'w') as f:
         for text in trg_sequences['train']:
             f.write(f'{text}\n')
 
     spm.SentencePieceProcessor()
     spm.SentencePieceTrainer.Train(
-        f'--input={args.preprocess_path}/trg.txt --model_prefix={args.preprocess_path}/m_trg_{args.trg_vocab_size} '
+        f'--input={args.preprocess_path}/{args.task}/trg.txt --model_prefix={args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size} '
         f'--vocab_size={args.trg_vocab_size} --character_coverage=0.9995 --split_by_whitespace=true '
         f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
         f'--model_type={args.sentencepiece_model}')
 
     trg_vocab = list()
-    with open(f'{args.preprocess_path}/m_trg_{args.trg_vocab_size}.vocab') as f:
+    with open(f'{args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size}.vocab') as f:
         for line in f:
             trg_vocab.append(line[:-1].split('\t')[0])
 
     word2id['trg'] = {w: i for i, w in enumerate(trg_vocab)}
     spm_trg = spm.SentencePieceProcessor()
-    spm_trg.Load(f'{args.preprocess_path}/m_trg_{args.trg_vocab_size}.model')
+    spm_trg.Load(f'{args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size}.model')
 
     train_trg_input_ids = tuple(
         [args.bos_id] + spm_trg.encode(
