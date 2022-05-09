@@ -57,7 +57,7 @@ if __name__=='__main__':
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
-    parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
+    parser.add_argument('--model_save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     parser.add_argument('--result_path', default='./results', type=str,
                         help='Results file path')               

@@ -44,11 +44,11 @@ def training(args):
     write_log(logger, "Load data...")
     gc.disable()
 
-    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.task, args.data_name, args.tokenizer)
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
+        save_name = f'processed_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
+        save_name = f'processed_{args.tokenizer}.hdf5'
 
     with h5py.File(os.path.join(save_path, save_name), 'r') as f:
         train_src_input_ids = f.get('train_src_input_ids')[:]
@@ -210,8 +210,11 @@ def training(args):
                 val_acc /= len(dataloader_dict[phase])
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
-                save_file_name = os.path.join(args.save_path, 
-                                              f'checkpoint_{args.data_name}_p_{args.parallel}_v_{args.variational}.pth.tar')
+                save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
+                if not os.path.exists(save_path):
+                    os.mkdir(save_path)
+                save_file_name = os.path.join(save_path, 
+                                              f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational}_p_{args.parallel}.pth.tar')
                 if val_acc > best_val_acc:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({
