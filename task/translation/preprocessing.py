@@ -85,7 +85,7 @@ def preprocessing(args):
     start_time = time.time()
 
     # Path checking
-    save_path = os.path.join(args.preprocess_path, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
