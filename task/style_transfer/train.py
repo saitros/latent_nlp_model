@@ -200,12 +200,14 @@ def training(args):
                         total_loss = nmt_loss + kl
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
-                    if args.scheduler == 'reduce_valid':
-                        scheduler.step(val_loss)
-                    if args.scheduler == 'lambda':
-                        scheduler.step()
 
             if phase == 'valid':
+                # scheduler
+                if args.scheduler == 'reduce_valid':
+                    scheduler.step(val_loss)
+                if args.scheduler == 'lambda':
+                    scheduler.step()
+
                 val_loss /= len(dataloader_dict[phase])
                 val_acc /= len(dataloader_dict[phase])
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)

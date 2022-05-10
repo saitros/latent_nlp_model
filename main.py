@@ -105,8 +105,8 @@ if __name__=='__main__':
                         help="Number of decoder layers; Default is 8")
     parser.add_argument('--trg_emb_prj_weight_sharing', default=False, type=str2bool,
                         help='Weight sharing between decoder embedding and decoder linear; Default is False')
-    parser.add_argument('--emb_src_trg_weight_sharing', default=True, type=str2bool,
-                        help='Weight sharing between encoder embedding and decoder embedding; Default is True')
+    parser.add_argument('--emb_src_trg_weight_sharing', default=False, type=str2bool,
+                        help='Weight sharing between encoder embedding and decoder embedding; Default is False')
     parser.add_argument('--parallel', default=False, type=str2bool,
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
     parser.add_argument('--num_common_layer', default=6, type=int, 

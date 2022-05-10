@@ -66,7 +66,6 @@ class TqdmLoggingHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
-
 def write_log(logger, message):
     if logger:
         logger.info(message)

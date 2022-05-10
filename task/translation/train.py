@@ -118,7 +118,7 @@ def training(args):
     start_epoch = 0
     if args.resume:
         write_log(logger, 'Resume model...')
-        checkpoint = torch.load(os.path.join(args.save_path, 'checkpoint.pth.tar'))
+        checkpoint = torch.load(os.path.join(args.model_save_path, 'checkpoint.pth.tar'))
         start_epoch = checkpoint['epoch'] + 1
         model.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -200,18 +200,23 @@ def training(args):
                         total_loss = nmt_loss + kl
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
-                    if args.scheduler == 'reduce_valid':
-                        scheduler.step(val_loss)
-                    if args.scheduler == 'lambda':
-                        scheduler.step()
 
             if phase == 'valid':
+
+                if args.scheduler == 'reduce_valid':
+                    scheduler.step(val_loss)
+                if args.scheduler == 'lambda':
+                    scheduler.step()
+
                 val_loss /= len(dataloader_dict[phase])
                 val_acc /= len(dataloader_dict[phase])
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
-                save_file_name = os.path.join(args.save_path, 
-                                              f'checkpoint_{args.data_name}_p_{args.parallel}_v_{args.variational}.pth.tar')
+                save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
+                if not os.path.exists(save_path):
+                    os.mkdir(save_path)
+                save_file_name = os.path.join(save_path, 
+                                              f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational}_p_{args.parallel}.pth.tar')
                 if val_acc > best_val_acc:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({

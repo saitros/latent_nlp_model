@@ -45,8 +45,7 @@ def testing(args):
     write_log(logger, "Load data...")
     gc.disable()
 
-    # save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
-    save_path = os.path.join(args.preprocess_path, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
     if args.tokenizer == 'spm':
         save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
@@ -99,15 +98,17 @@ def testing(args):
 
     # loda model
     model = model.to(device)
-    save_file_name = os.path.join(args.save_path, 
-                                    f'checkpoint_{args.data_name}_p_{args.parallel}_v_{args.variational}.pth.tar')
+    save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
+    save_file_name = os.path.join(save_path, 
+                                    f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational}_p_{args.parallel}.pth.tar')
     model.load_state_dict(torch.load(save_file_name)['model'])
     model = model.eval()
 
     # load sentencepiece model
     write_log(logger, "Load SentencePiece model")
     spm_trg = spm.SentencePieceProcessor()
-    spm_trg.Load(f'{args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size}.model')
+    preprocess_save_path = os.path.join(args.preprocess_path, args.task, args.data_name, args.tokenizer)
+    spm_trg.Load(f'{preprocess_save_path}/m_trg_{args.sentencepiece_model}_{args.trg_vocab_size}.model')
 
     # Pre-setting
     predicted_list = list()
