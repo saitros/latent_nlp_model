@@ -33,7 +33,7 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     spm.SentencePieceTrainer.Train(
         f'--input={preprocess_save_path}/src.txt --model_type={args.sentencepiece_model} '
         f'--model_prefix={preprocess_save_path}/m_src_{args.sentencepiece_model}_{args.src_vocab_size} '
-        f'--vocab_size={args.src_vocab_size} --character_coverage=0.9995 --split_by_whitespace=true '
+        f'--vocab_size={args.src_vocab_size} --character_coverage=1 --split_by_whitespace=true '
         f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id}')
 
     src_vocab = list()
@@ -74,7 +74,7 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     spm.SentencePieceTrainer.Train(
         f'--input={preprocess_save_path}/trg.txt --model_type={args.sentencepiece_model} '
         f'--model_prefix={preprocess_save_path}/m_trg_{args.sentencepiece_model}_{args.trg_vocab_size} '
-        f'--vocab_size={args.trg_vocab_size} --character_coverage=0.9995 --split_by_whitespace=true '
+        f'--vocab_size={args.trg_vocab_size} --character_coverage=1 --split_by_whitespace=true '
         f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id}')
 
     trg_vocab = list()
