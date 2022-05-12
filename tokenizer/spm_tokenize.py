@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import sentencepiece as spm
 
@@ -12,29 +13,37 @@ def pad_add(list_, max_len: int = 300):
 
 def spm_tokenizing(src_sequences, trg_sequences, args):
 
+    # 0) Path Setting
+    if not os.path.exists(os.path.join(args.preprocess_path, args.task, args.data_name)):
+        os.mkdir(os.path.join(args.preprocess_path, args.task, args.data_name))
+
+    preprocess_save_path = os.path.join(args.preprocess_path, args.task, args.data_name, args.tokenizer)
+    if not os.path.exists(preprocess_save_path):
+        os.mkdir(preprocess_save_path)
+
     # 1) Source lanugage
     processed_src, processed_trg, word2id = dict(), dict(), dict()
 
     # Make text to train vocab
-    with open(f'{args.preprocess_path}/{args.task}/src.txt', 'w') as f:
+    with open(f'{preprocess_save_path}/src.txt', 'w') as f:
         for text in src_sequences['train']:
             f.write(f'{text}\n')
 
     spm.SentencePieceProcessor()
     spm.SentencePieceTrainer.Train(
-        f'--input={args.preprocess_path}/{args.task}/src.txt --model_prefix={args.preprocess_path}/{args.task}/m_src_{args.src_vocab_size} '
-        f'--vocab_size={args.src_vocab_size} --character_coverage=0.9995 --split_by_whitespace=true '
-        f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
-        f'--model_type={args.sentencepiece_model}')
+        f'--input={preprocess_save_path}/src.txt --model_type={args.sentencepiece_model} '
+        f'--model_prefix={preprocess_save_path}/m_src_{args.sentencepiece_model}_{args.src_vocab_size} '
+        f'--vocab_size={args.src_vocab_size} --character_coverage=1 --split_by_whitespace=true '
+        f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id}')
 
     src_vocab = list()
-    with open(f'{args.preprocess_path}/{args.task}/m_src_{args.src_vocab_size}.vocab') as f:
+    with open(f'{preprocess_save_path}/m_src_{args.sentencepiece_model}_{args.src_vocab_size}.vocab') as f:
         for line in f:
             src_vocab.append(line[:-1].split('\t')[0])
 
     word2id['src'] = {w: i for i, w in enumerate(src_vocab)}
     spm_src = spm.SentencePieceProcessor()
-    spm_src.Load(f'{args.preprocess_path}/{args.task}/m_src_{args.src_vocab_size}.model')
+    spm_src.Load(f'{preprocess_save_path}/m_src_{args.sentencepiece_model}_{args.src_vocab_size}.model')
 
     # Encoding
     train_src_input_ids = tuple(
@@ -57,25 +66,25 @@ def spm_tokenizing(src_sequences, trg_sequences, args):
     # 2) Target lanugage
 
     # Make text to train vocab
-    with open(f'{args.preprocess_path}/{args.task}/trg.txt', 'w') as f:
+    with open(f'{preprocess_save_path}/trg.txt', 'w') as f:
         for text in trg_sequences['train']:
             f.write(f'{text}\n')
 
     spm.SentencePieceProcessor()
     spm.SentencePieceTrainer.Train(
-        f'--input={args.preprocess_path}/{args.task}/trg.txt --model_prefix={args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size} '
-        f'--vocab_size={args.trg_vocab_size} --character_coverage=0.9995 --split_by_whitespace=true '
-        f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
-        f'--model_type={args.sentencepiece_model}')
+        f'--input={preprocess_save_path}/trg.txt --model_type={args.sentencepiece_model} '
+        f'--model_prefix={preprocess_save_path}/m_trg_{args.sentencepiece_model}_{args.trg_vocab_size} '
+        f'--vocab_size={args.trg_vocab_size} --character_coverage=1 --split_by_whitespace=true '
+        f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id}')
 
     trg_vocab = list()
-    with open(f'{args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size}.vocab') as f:
+    with open(f'{preprocess_save_path}/m_trg_{args.sentencepiece_model}_{args.trg_vocab_size}.vocab') as f:
         for line in f:
             trg_vocab.append(line[:-1].split('\t')[0])
 
     word2id['trg'] = {w: i for i, w in enumerate(trg_vocab)}
     spm_trg = spm.SentencePieceProcessor()
-    spm_trg.Load(f'{args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size}.model')
+    spm_trg.Load(f'{preprocess_save_path}/m_trg_{args.sentencepiece_model}_{args.trg_vocab_size}.model')
 
     train_trg_input_ids = tuple(
         [args.bos_id] + spm_trg.encode(

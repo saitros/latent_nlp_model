@@ -57,7 +57,7 @@ if __name__=='__main__':
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
-    parser.add_argument('--save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
+    parser.add_argument('--model_save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     parser.add_argument('--result_path', default='./results', type=str,
                         help='Results file path')               
@@ -105,8 +105,8 @@ if __name__=='__main__':
                         help="Number of decoder layers; Default is 8")
     parser.add_argument('--trg_emb_prj_weight_sharing', default=False, type=str2bool,
                         help='Weight sharing between decoder embedding and decoder linear; Default is False')
-    parser.add_argument('--emb_src_trg_weight_sharing', default=True, type=str2bool,
-                        help='Weight sharing between encoder embedding and decoder embedding; Default is True')
+    parser.add_argument('--emb_src_trg_weight_sharing', default=False, type=str2bool,
+                        help='Weight sharing between encoder embedding and decoder embedding; Default is False')
     parser.add_argument('--parallel', default=False, type=str2bool,
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
     parser.add_argument('--num_common_layer', default=6, type=int, 
