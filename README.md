@@ -10,8 +10,12 @@ This code is written in Python. Dependencies include
 * Transformers (Huggingface) == 4.8.1
 
 ### Usable Data
-* WMT 2014 translation task DE -> EN (--data_name=WMT2014_de_en)
-* WMT 2016 multimodal DE -> EN (--data_name=WMT2016_Multimodal)
+#### Neural Machine Translation
+* WMT 2014 translation task **DE -> EN** (--task=translation --data_name=WMT2014_de_en)
+* WMT 2016 multimodal **DE -> EN** (--task=translation --data_name=WMT2016_Multimodal)
+#### Text Style Transfer
+* Grammarly's Yahho Answer Formality Corpus **Informal -> Formal** (--task=style_transfer --data_name=GYAFC)
+* Wiki Neutrality Corpus **Biased -> Neutral** (--task=style_transfer --data_name=WNC)
 
 ## Preprocessing
 
@@ -70,6 +74,7 @@ Implementation of the Bart model in "[BART: Denoising Sequence-to-Sequence Pre-t
 * **Kyohoon Jin** - *Project Manager* - [[Link]](https://github.com/fhzh123)
 * **Jaeyoung Park** - *Sub Manager* - [[Link]](https://github.com/jury124)
 * **Juhwan Choi** - *Enginner* - [[Link]](https://github.com/c-juhwan)
+* **Junho Lee** - *Enginner* - [[Link]](https://github.com/saitros)
 
 See also the list of [contributors](https://github.com/orgs/IIPL-CAU/people) who participated in this project.
 
