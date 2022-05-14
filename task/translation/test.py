@@ -269,9 +269,9 @@ def testing(args):
                 save_result_path = os.path.join(args.result_path, detail_path)
                 if not os.path.exists(save_result_path):
                     os.mkdir(save_result_path)
-                with open(os.path.join(save_result_path, 'prediction_text.txt'), 'a') as f:
+                with open(os.path.join(save_result_path, f'v_{args.variational_mode}_prediction_text.txt'), 'a') as f:
                     f.write(pred + '\n')
-                with open(os.path.join(save_result_path, 'label_text.txt'), 'a') as f:
+                with open(os.path.join(save_result_path, f'v_{args.variational_mode}_label_text.txt'), 'a') as f:
                     f.write(real + '\n')
                 # Append for BLEU calculate
                 reference_token.append([real_token])

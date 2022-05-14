@@ -45,11 +45,12 @@ def testing(args):
     write_log(logger, "Load data...")
     gc.disable()
 
-    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.task, args.data_name, args.tokenizer)
+
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
+        save_name = f'processed_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
+        save_name = f'processed_{args.tokenizer}.hdf5'
     
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'r') as f:
         test_src_input_ids = f.get('test_src_input_ids')[:]
@@ -122,7 +123,7 @@ def testing(args):
 
     # Beam search
     with torch.no_grad():
-        for i, (src, trg) in enumerate(tqdm(test_dataloader, bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
+        for loader_i, (src, trg) in enumerate(tqdm(test_dataloader, bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
             # Input, output setting
             src = src.to(device, non_blocking=True)
@@ -269,9 +270,9 @@ def testing(args):
                 save_result_path = os.path.join(args.result_path, detail_path)
                 if not os.path.exists(save_result_path):
                     os.mkdir(save_result_path)
-                with open(os.path.join(save_result_path, 'prediction_text.txt'), 'a') as f:
+                with open(os.path.join(save_result_path, f'v_{args.variational_mode}_prediction_text.txt'), 'a') as f:
                     f.write(pred + '\n')
-                with open(os.path.join(save_result_path, 'label_text.txt'), 'a') as f:
+                with open(os.path.join(save_result_path, f'v_{args.variational_mode}_label_text.txt'), 'a') as f:
                     f.write(real + '\n')
                 # Append for BLEU calculate
                 reference_token.append([real_token])
@@ -280,8 +281,8 @@ def testing(args):
             # BLEU calculate
             corpus_bleu_score = corpus_bleu(reference_token, candidate_token)
 
-            if i == 0 or freq == args.print_freq:
-                batch_log = '[%d/%d] Corpus BLEU: %3.3f | Spend time:%3.3fmin' % (i, len(test_dataloader), corpus_bleu_score, (time.time() - start_time_e) / 60)
+            if loader_i == 0 or freq == args.print_freq:
+                batch_log = '[%d/%d] Corpus BLEU: %3.3f | Spend time:%3.3fmin' % (loader_i, len(test_dataloader), corpus_bleu_score, (time.time() - start_time_e) / 60)
                 write_log(logger, batch_log)
                 freq = 0
             freq += 1
