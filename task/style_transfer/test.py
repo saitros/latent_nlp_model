@@ -92,16 +92,16 @@ def testing(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            variational=args.variational, parallel=args.parallel)
+                            variational_mode=args.variational_mode, parallel=args.parallel)
     else:
         model = Bart(model_type=args.model_type, isPreTrain=args.isPreTrain,
-                     variational=args.variational, d_latent=args.d_latent)
+                     variational_mode=args.variational_mode, d_latent=args.d_latent)
 
     # loda model
     model = model.to(device)
     save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
     save_file_name = os.path.join(save_path, 
-                                    f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational}_p_{args.parallel}.pth.tar')
+                                    f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
     model.load_state_dict(torch.load(save_file_name)['model'])
     model = model.eval()
 
@@ -164,7 +164,7 @@ def testing(args):
 
             # Latent variable concat (Need re-checking)
             # Source sentence latent mapping
-            if args.variational:
+            if args.variational_mode == 1:
                 z = model.context_to_mu(encoder_out)
                 src_context = model.z_to_context(z)
                 encoder_out = torch.add(encoder_out, src_context)
