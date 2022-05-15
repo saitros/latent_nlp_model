@@ -118,7 +118,7 @@ if __name__=='__main__':
     parser.add_argument('--num_common_layer', default=6, type=int, 
                         help="Number of common layers; Default is 6")
     # 2) Variational model
-    parser.add_argument('--variational', default=False, type=str2bool,
+    parser.add_argument('--variational_mode', default=0, type=int,
                         help='Variational transformer mode; Default is False')
     parser.add_argument('--d_latent', default=128, type=int, 
                         help='Latent variable dimension; Default is 128')

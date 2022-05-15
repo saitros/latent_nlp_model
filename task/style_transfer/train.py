@@ -107,10 +107,10 @@ def training(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            variational=args.variational, parallel=args.parallel)
+                            variational_mode=args.variational_mode, parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     else:
-        model = Bart(isPreTrain=args.isPreTrain, variational=args.variational, d_latent=args.d_latent,
+        model = Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode, d_latent=args.d_latent,
                      emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     model = model.to(device)
@@ -231,7 +231,7 @@ def training(args):
                 if not os.path.exists(save_path):
                     os.mkdir(save_path)
                 save_file_name = os.path.join(save_path, 
-                                              f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational}_p_{args.parallel}.pth.tar')
+                                              f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
                 if val_acc > best_val_acc:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({

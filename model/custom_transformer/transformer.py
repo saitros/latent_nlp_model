@@ -14,7 +14,7 @@ class Transformer(nn.Module):
             d_latent=256, num_common_layer=10, num_encoder_layer=10, num_decoder_layer=10, 
             src_max_len=100, trg_max_len=100, 
             trg_emb_prj_weight_sharing=False, emb_src_trg_weight_sharing=True,
-            dropout=0.1, embedding_dropout=0.1, variational=False, parallel=False):
+            dropout=0.1, embedding_dropout=0.1, variational_mode=0, parallel=False):
 
         super(Transformer, self).__init__()
 
@@ -61,8 +61,8 @@ class Transformer(nn.Module):
         self.trg_output_linear2 = nn.Linear(d_embedding, trg_vocab_num)
 
         # Variational model setting
-        self.variational = variational
-        if self.variational:
+        self.variational_mode = variational_mode
+        if self.variational_mode == 1:
             self.context_to_mu = nn.Linear(d_model, d_latent)
             self.context_to_logvar = nn.Linear(d_model, d_latent)
             self.z_to_context = nn.Linear(d_latent, d_model)
@@ -115,7 +115,7 @@ class Transformer(nn.Module):
             for encoder in self.encoders:
                 encoder_out = encoder(encoder_out, src_key_padding_mask=src_key_padding_mask)
 
-            if self.variational:
+            if self.variational_mode == 1:
                 # Source sentence latent mapping
                 src_mu = self.context_to_mu(encoder_out) # (token, batch, d_latent)
                 src_logvar = self.context_to_logvar(encoder_out) # (token, batch, d_latent)
@@ -137,6 +137,9 @@ class Transformer(nn.Module):
                 resize_z = self.z_to_context(src_mu)
 
                 encoder_out = torch.add(encoder_out, resize_z)
+            # elif self.variationa_mode == 2:
+                
+                
             else:
                 kl = 0
 
