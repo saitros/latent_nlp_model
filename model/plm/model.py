@@ -12,7 +12,7 @@ from transformers import BartTokenizerFast, BartForConditionalGeneration, BartCo
 from ..loss import GaussianKLLoss
 
 class Pretrained_Transformer(nn.Module):
-    def __init__(self, model_type, isPreTrain, variational, d_latent):
+    def __init__(self, model_type, isPreTrain, variational_mode, d_latent):
         super().__init__()
 
         """
@@ -75,8 +75,8 @@ class Pretrained_Transformer(nn.Module):
             self.lm_head = self.model.lm_head
 
         # Variational model setting
-        self.variational = variational
-        if self.variational:
+        self.variational_mode = variational_mode
+        if self.variational_mode == 1:
             self.context_to_mu = nn.Linear(self.d_hidden, d_latent)
             self.context_to_logvar = nn.Linear(self.d_hidden, d_latent)
             self.mu_to_context = nn.Linear(d_latent, self.d_hidden)
@@ -104,7 +104,7 @@ class Pretrained_Transformer(nn.Module):
             #                                      attention_mask=src_attention_mask)
             # src_encoder_out = src_encoder_out['last_hidden_state']
 
-            # if self.variational:
+            # if self.variational_mode == 1:
             #     # Source sentence latent mapping
             #     src_mu = self.context_to_mu(src_encoder_out)
             #     src_logvar = self.context_to_logvar(src_encoder_out)

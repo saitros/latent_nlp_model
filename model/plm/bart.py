@@ -9,7 +9,7 @@ from transformers import BartForConditionalGeneration, BartConfig
 from ..loss import GaussianKLLoss
 
 class Bart(nn.Module):
-    def __init__(self, isPreTrain, variational, d_latent, emb_src_trg_weight_sharing=True):
+    def __init__(self, isPreTrain, variational_mode, d_latent, emb_src_trg_weight_sharing=True):
         super().__init__()
 
         """
@@ -49,8 +49,8 @@ class Bart(nn.Module):
         self.lm_head = self.model.lm_head
 
         # Variational model setting
-        self.variational = variational
-        if self.variational:
+        self.variational_mode = variational_mode
+        if self.variational_mode == 1:
             self.context_to_mu = nn.Linear(self.d_hidden, d_latent)
             self.context_to_logvar = nn.Linear(self.d_hidden, d_latent)
             self.mu_to_context = nn.Linear(d_latent, self.d_hidden)
@@ -83,7 +83,7 @@ class Bart(nn.Module):
                                                  attention_mask=src_attention_mask)
             src_encoder_out = src_encoder_out['last_hidden_state']
 
-        if self.variational:
+        if self.variational_mode == 1:
             # Source sentence latent mapping
             src_mu = self.context_to_mu(src_encoder_out)
             src_logvar = self.context_to_logvar(src_encoder_out)
