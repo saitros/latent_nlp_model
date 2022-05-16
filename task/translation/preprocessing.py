@@ -43,6 +43,9 @@ def preprocessing(args):
     elif args.data_name == 'shift_challenge':
         args.data_path = os.path.join(args.data_path,'shift_challenge')
 
+    elif args.data_name == 'korpora':
+        args.data_path = os.path.join(args.data_path,'korpora')
+
     # 1) Train data load
     with open(os.path.join(args.data_path, 'train.de'), 'r') as f:
         src_sequences['train'] = [x.replace('\n', '') for x in f.readlines()]

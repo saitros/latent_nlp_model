@@ -62,7 +62,7 @@ class Transformer(nn.Module):
 
         # Variational model setting
         self.variational_mode = variational_mode
-        if self.variational_mode == 1:
+        if self.variational_mode == 1 or self.variational_mode == 2:
             self.context_to_mu = nn.Linear(d_model, d_latent)
             self.context_to_logvar = nn.Linear(d_model, d_latent)
             self.z_to_context = nn.Linear(d_latent, d_model)
@@ -74,6 +74,11 @@ class Transformer(nn.Module):
             self.latent_to_context = nn.Linear(d_latent, d_model)
 
             self.mmd_criterion = MaximumMeanDiscrepancyLoss()
+
+        if self.variational_mode == 4:
+            self.context_to_mu = nn.Linear(d_model, d_latent)
+            self.context_to_logvar = nn.Linear(d_model, d_latent)
+            self.z_to_context = nn.Linear(d_latent, d_model)
 
         # Weight sharing
         # self.x_logit_scale = 1.
@@ -143,7 +148,40 @@ class Transformer(nn.Module):
                 resize_z = self.z_to_context(z)
 
                 encoder_out = torch.add(encoder_out, resize_z)
-            elif self.variational_mode == 2:
+
+            if self.variational_mode == 2:
+                # Source sentence latent mapping
+                src_mu = self.context_to_mu(encoder_out) # (token, batch, d_latent)
+                src_logvar = self.context_to_logvar(encoder_out) # (token, batch, d_latent)
+                # Target sentence latent mapping
+                with torch.no_grad():
+                    for encoder in self.encoders:
+                        encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
+                                                  src_key_padding_mask=tgt_key_padding_mask_)
+                trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
+                trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
+
+                mu1 = src_mu.view(encoder_out.size(1), -1)
+                logvar1 = src_logvar.view(encoder_out.size(1), -1)
+                mu2 = trg_mu.view(encoder_out.size(1), -1)
+                logvar2 = trg_logvar.view(encoder_out.size(1), -1)
+
+                numerator = logvar1.exp() + torch.pow(mu1 - mu2, 2)
+                fraction = torch.div(numerator, (logvar2.exp()))
+
+                dist_loss = 0.5 * torch.sum(logvar2 - logvar1 + fraction - 1, dim=0)
+                dist_loss = dist_loss.mean()
+
+                # Re-parameterization
+                std = src_logvar.mul(0.5).exp_()
+                eps = Variable(std.data.new(std.size()).normal_())
+                z = eps.mul(std).add_(src_mu)
+
+                resize_z = self.z_to_context(z)
+
+                encoder_out = torch.add(encoder_out, resize_z)
+
+            elif self.variational_mode == 3:
                 # Source sentence latent mapping
                 src_latent = self.context_to_latent(encoder_out) # (token, batch, d_latent)
                 # Target sentence latent mapping
@@ -159,6 +197,23 @@ class Transformer(nn.Module):
                 src_latent = self.latent_to_context(src_latent)
 
                 encoder_out = torch.add(encoder_out, src_latent)
+
+            elif self.variational_mode == 4:
+                # Source sentence latent mapping
+                src_mu = self.context_to_mu(encoder_out) # (token, batch, d_latent)
+                src_logvar = self.context_to_logvar(encoder_out) # (token, batch, d_latent)
+
+                # KL Divergence
+                mu = src_mu.view(encoder_out.size(1), -1)
+                logvar = src_logvar.view(encoder_out.size(1), -1)
+                dist_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+                # Re-parameterization
+                std = src_logvar.mul(0.5).exp_()
+                eps = Variable(std.data.new(std.size()).normal_())
+                z = eps.mul(std).add_(src_mu)
+
+                encoder_out = self.z_to_context(z)
                 
             else:
                 dist_loss = 0

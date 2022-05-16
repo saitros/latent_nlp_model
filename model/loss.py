@@ -64,7 +64,7 @@ class MaximumMeanDiscrepancyLoss(nn.Module):
             z (Tensor): samples from prior distributions. same shape with z_tilde.
             z_var (Number): scalar variance of isotropic gaussian prior P(Z).
         """
-        batch_size = z_tilde.size(0)
+        batch_size = z_tilde.size(1)
         z_tilde = z_tilde.view(batch_size, -1)
         z = z.view(batch_size, -1)
         assert z_tilde.size() == z.size()
