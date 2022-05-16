@@ -6,7 +6,7 @@ from torch.nn import functional as F
 from torch.nn.modules.activation import MultiheadAttention
 # Import custom modules
 from .embedding import TransformerEmbedding
-from ..loss import GaussianKLLoss
+from ..loss import GaussianKLLoss, MaximumMeanDiscrepancyLoss
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_num, trg_vocab_num, pad_idx=0, bos_idx=1, eos_idx=2, 
@@ -69,6 +69,12 @@ class Transformer(nn.Module):
 
             self.kl_criterion = GaussianKLLoss()
 
+        if self.variational_mode == 2:
+            self.context_to_latent = nn.Linear(d_model, d_latent)
+            self.latent_to_context = nn.Linear(d_latent, d_model)
+
+            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
+
         # Weight sharing
         # self.x_logit_scale = 1.
         # if trg_emb_prj_weight_sharing:
@@ -127,21 +133,35 @@ class Transformer(nn.Module):
                 trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
                 trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
 
-                kl = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
+                dist_loss = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
 
                 # Re-parameterization
                 std = src_logvar.mul(0.5).exp_()
                 eps = Variable(std.data.new(std.size()).normal_())
                 z = eps.mul(std).add_(src_mu)
 
-                resize_z = self.z_to_context(src_mu)
+                resize_z = self.z_to_context(z)
 
                 encoder_out = torch.add(encoder_out, resize_z)
-            # elif self.variationa_mode == 2:
-                
+            elif self.variational_mode == 2:
+                # Source sentence latent mapping
+                src_latent = self.context_to_latent(encoder_out) # (token, batch, d_latent)
+                # Target sentence latent mapping
+                with torch.no_grad():
+                    for encoder in self.encoders:
+                        encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
+                                                  src_key_padding_mask=tgt_key_padding_mask_)
+                trg_latent = self.context_to_latent(encoder_out_trg) # (token, batch, d_latent)
+
+                dist_loss = self.mmd_criterion(src_latent, trg_latent, 2) # z_var is 2 now
+
+                #
+                src_latent = self.latent_to_context(src_latent)
+
+                encoder_out = torch.add(encoder_out, src_latent)
                 
             else:
-                kl = 0
+                dist_loss = 0
 
             # Decoder
             for decoder in self.decoders:
@@ -155,7 +175,7 @@ class Transformer(nn.Module):
         decoder_out = self.trg_output_norm(self.dropout(F.gelu(self.trg_output_linear(decoder_out))))
         decoder_out = self.trg_output_linear2(decoder_out)
         # decoder_out = decoder_out * self.x_logit_scale
-        return decoder_out, kl
+        return decoder_out, dist_loss
 
     @staticmethod
     def generate_square_subsequent_mask(sz, device):

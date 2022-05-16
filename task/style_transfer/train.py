@@ -162,11 +162,11 @@ def training(args):
                 if phase == 'train':
 
                     with autocast():
-                        predicted, kl = model(src_sequence, trg_sequence, 
+                        predicted, dist_loss = model(src_sequence, trg_sequence, 
                                               non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
-                        total_loss = nmt_loss + kl
+                        gen_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
+                        total_loss = gen_loss + dist_loss
 
                     scaler.scale(total_loss).backward()
                     if args.clip_grad_norm > 0:
@@ -178,10 +178,10 @@ def training(args):
                     if args.scheduler in ['constant', 'warmup']:
                         scheduler.step()
                     if args.scheduler == 'reduce_train':
-                        scheduler.step(nmt_loss)
+                        scheduler.step(total_loss)
 
                     # Print loss value only training
-                    if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
+                    if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train'])-1:
                         acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.3f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
@@ -194,10 +194,10 @@ def training(args):
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
-                        predicted, kl = model(src_sequence, trg_sequence, 
+                        predicted, dist_loss = model(src_sequence, trg_sequence, 
                                               non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold)
-                        total_loss = nmt_loss + kl
+                        gen_loss = F.cross_entropy(predicted, trg_sequence_gold)
+                        total_loss = gen_loss + dist_loss
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
 
