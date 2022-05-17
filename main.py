@@ -67,6 +67,10 @@ if __name__=='__main__':
             ], help='Tokenizer select; Default is spm')
     parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
                         help="Google's SentencePiece model type; Default is unigram")
+    parser.add_argument('--src_character_coverage', default=1.0, type=float,
+                        help='Source language chracter coverage ratio; Default is 1.0')
+    parser.add_argument('--trg_character_coverage', default=1.0, type=float,
+                        help='Target language chracter coverage ratio; Default is 1.0')
     parser.add_argument('--src_vocab_size', default=3600, type=int,
                         help='Source text vocabulary size; Default is 3600')
     parser.add_argument('--trg_vocab_size', default=3600, type=int,

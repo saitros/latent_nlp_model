@@ -69,7 +69,7 @@ class Transformer(nn.Module):
 
             self.kl_criterion = GaussianKLLoss()
 
-        if self.variational_mode == 2:
+        if self.variational_mode == 3:
             self.context_to_latent = nn.Linear(d_model, d_latent)
             self.latent_to_context = nn.Linear(d_latent, d_model)
 
