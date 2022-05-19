@@ -75,7 +75,8 @@ def preprocessing(args):
     start_time = time.time()
 
     if args.tokenizer == 'spm':
-        processed_src, processed_trg, word2id = spm_tokenizing(src_sequences, trg_sequences, args)
+        processed_src, word2id_src = spm_tokenizing(src_sequences, args)
+        processed_trg, word2id_trg = spm_tokenizing(src_sequences, args)
     elif args.tokenizer == 'spacy':
         processed_src, processed_trg, word2id = spacy_tokenizing(src_sequences, trg_sequences, args)
     else:
