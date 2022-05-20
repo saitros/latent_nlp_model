@@ -11,7 +11,7 @@ def pad_add(list_, max_len: int = 300):
             ind_list.append(ind)
     return np.array(ind_list, dtype=np.int32)
 
-def spm_tokenizing(sequence_dict: dict, domain: str = 'src', args):
+def spm_tokenizing(sequence_dict: dict, args, domain: str = 'src'):
 
     # 0) Path Setting
     if not os.path.exists(os.path.join(args.preprocess_path, args.task, args.data_name)):
