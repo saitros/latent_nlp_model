@@ -17,8 +17,8 @@ def data_split_index(seq):
 
 def total_data_load(args):
 
-    src_sequences = dict()
-    trg_sequences = dict()
+    src_list = dict()
+    trg_list = dict()
 
     #===================================#
     #============Translation============#
@@ -31,21 +31,21 @@ def total_data_load(args):
 
         # 1) Train data load
         with open(os.path.join(args.data_path, 'train.de'), 'r') as f:
-            src_sequences['train'] = [x.replace('\n', '') for x in f.readlines()]
+            src_list['train'] = [x.replace('\n', '') for x in f.readlines()]
         with open(os.path.join(args.data_path, 'train.en'), 'r') as f:
-            trg_sequences['train'] = [x.replace('\n', '') for x in f.readlines()]
+            trg_list['train'] = [x.replace('\n', '') for x in f.readlines()]
 
         # 2) Valid data load
         with open(os.path.join(args.data_path, 'val.de'), 'r') as f:
-            src_sequences['valid'] = [x.replace('\n', '') for x in f.readlines()]
+            src_list['valid'] = [x.replace('\n', '') for x in f.readlines()]
         with open(os.path.join(args.data_path, 'val.en'), 'r') as f:
-            trg_sequences['valid'] = [x.replace('\n', '') for x in f.readlines()]
+            trg_list['valid'] = [x.replace('\n', '') for x in f.readlines()]
 
         # 3) Test data load
         with open(os.path.join(args.data_path, 'test.de'), 'r') as f:
-            src_sequences['test'] = [x.replace('\n', '') for x in f.readlines()]
+            src_list['test'] = [x.replace('\n', '') for x in f.readlines()]
         with open(os.path.join(args.data_path, 'test.en'), 'r') as f:
-            trg_sequences['test'] = [x.replace('\n', '') for x in f.readlines()]
+            trg_list['test'] = [x.replace('\n', '') for x in f.readlines()]
 
     # WMT2014 Translation [DE -> EN]
         
@@ -54,21 +54,21 @@ def total_data_load(args):
 
         # 1) Train data load
         with open(os.path.join(args.data_path, 'train.de'), 'r') as f:
-            src_sequences['train'] = [x.replace('\n', '') for x in f.readlines()]
+            src_list['train'] = [x.replace('\n', '') for x in f.readlines()]
         with open(os.path.join(args.data_path, 'train.en'), 'r') as f:
-            trg_sequences['train'] = [x.replace('\n', '') for x in f.readlines()]
+            trg_list['train'] = [x.replace('\n', '') for x in f.readlines()]
 
         # 2) Valid data load
         with open(os.path.join(args.data_path, 'val.de'), 'r') as f:
-            src_sequences['valid'] = [x.replace('\n', '') for x in f.readlines()]
+            src_list['valid'] = [x.replace('\n', '') for x in f.readlines()]
         with open(os.path.join(args.data_path, 'val.en'), 'r') as f:
-            trg_sequences['valid'] = [x.replace('\n', '') for x in f.readlines()]
+            trg_list['valid'] = [x.replace('\n', '') for x in f.readlines()]
 
         # 3) Test data load
         with open(os.path.join(args.data_path, 'test.de'), 'r') as f:
-            src_sequences['test'] = [x.replace('\n', '') for x in f.readlines()]
+            src_list['test'] = [x.replace('\n', '') for x in f.readlines()]
         with open(os.path.join(args.data_path, 'test.en'), 'r') as f:
-            trg_sequences['test'] = [x.replace('\n', '') for x in f.readlines()]
+            trg_list['test'] = [x.replace('\n', '') for x in f.readlines()]
 
     # elif args.data_name == 'shift_challenge':
     #     args.data_path = os.path.join(args.data_path,'shift_challenge')
@@ -83,14 +83,14 @@ def total_data_load(args):
 
         train_index, valid_index, test_index = data_split_index(en)
 
-        src_sequences['train'] = [en[i] for i in train_index]
-        trg_sequences['train'] = [kr[i] for i in train_index]
+        src_list['train'] = [en[i] for i in train_index]
+        trg_list['train'] = [kr[i] for i in train_index]
 
-        src_sequences['valid'] = [en[i] for i in valid_index]
-        trg_sequences['valid'] = [kr[i] for i in valid_index]
+        src_list['valid'] = [en[i] for i in valid_index]
+        trg_list['valid'] = [kr[i] for i in valid_index]
 
-        src_sequences['test'] = [en[i] for i in test_index]
-        trg_sequences['test'] = [kr[i] for i in test_index]
+        src_list['test'] = [en[i] for i in test_index]
+        trg_list['test'] = [kr[i] for i in test_index]
 
     # AIHUB [EN -> KR]
 
@@ -101,14 +101,14 @@ def total_data_load(args):
 
         train_index, valid_index, test_index = data_split_index(dat)
 
-        src_sequences['train'] = [dat['EN'][i] for i in train_index]
-        trg_sequences['train'] = [dat['KR'][i] for i in train_index]
+        src_list['train'] = [dat['EN'][i] for i in train_index]
+        trg_list['train'] = [dat['KR'][i] for i in train_index]
 
-        src_sequences['valid'] = [dat['EN'][i] for i in valid_index]
-        trg_sequences['valid'] = [dat['KR'][i] for i in valid_index]
+        src_list['valid'] = [dat['EN'][i] for i in valid_index]
+        trg_list['valid'] = [dat['KR'][i] for i in valid_index]
 
-        src_sequences['test'] = [dat['EN'][i] for i in test_index]
-        trg_sequences['test'] = [dat['KR'][i] for i in test_index]
+        src_list['test'] = [dat['EN'][i] for i in test_index]
+        trg_list['test'] = [dat['KR'][i] for i in test_index]
 
     #===================================#
     #========Text Style Transfer========#
@@ -138,14 +138,14 @@ def total_data_load(args):
 
         train_index, valid_index, test_index = data_split_index(record_list_src)
 
-        src_sequences['train'] = [record_list_src[i] for i in train_index]
-        trg_sequences['train'] = [record_list_trg[i] for i in train_index]
+        src_list['train'] = [record_list_src[i] for i in train_index]
+        trg_list['train'] = [record_list_trg[i] for i in train_index]
 
-        src_sequences['valid'] = [record_list_src[i] for i in valid_index]
-        trg_sequences['valid'] = [record_list_trg[i] for i in valid_index]
+        src_list['valid'] = [record_list_src[i] for i in valid_index]
+        trg_list['valid'] = [record_list_trg[i] for i in valid_index]
 
-        src_sequences['test'] = [record_list_src[i] for i in test_index]
-        trg_sequences['test'] = [record_list_trg[i] for i in test_index]
+        src_list['test'] = [record_list_src[i] for i in test_index]
+        trg_list['test'] = [record_list_trg[i] for i in test_index]
 
     # WNC [Biased -> Neutral]
 
@@ -160,11 +160,15 @@ def total_data_load(args):
         test_dat = pd.read_csv(os.path.join(args.data_path, 'WNC/biased.word.test'),
                                sep='\t', names=col_names)
 
-        src_sequences['train'] = train_dat['src_raw'].tolist()
-        trg_sequences['train'] = train_dat['trg_raw'].tolist()
-        src_sequences['valid'] = valid_dat['src_raw'].tolist()
-        trg_sequences['valid'] = valid_dat['trg_raw'].tolist()
-        src_sequences['test'] = test_dat['src_raw'].tolist()
-        trg_sequences['test'] = test_dat['trg_raw'].tolist()
+        src_list['train'] = train_dat['src_raw'].tolist()
+        trg_list['train'] = train_dat['trg_raw'].tolist()
+        src_list['valid'] = valid_dat['src_raw'].tolist()
+        trg_list['valid'] = valid_dat['trg_raw'].tolist()
+        src_list['test'] = test_dat['src_raw'].tolist()
+        trg_list['test'] = test_dat['trg_raw'].tolist()
 
-    return src_sequences, trg_sequences
+    #===================================#
+    #==========Classification===========#
+    #===================================#
+
+    return src_list, trg_list
