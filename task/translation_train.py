@@ -12,7 +12,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
-from latent_machine_translation.model.plm.T5 import custom_T5
+from model.plm.T5 import custom_T5
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer

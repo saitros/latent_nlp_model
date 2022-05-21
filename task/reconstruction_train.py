@@ -162,8 +162,8 @@ def recon_training(args):
                 if phase == 'train':
 
                     with autocast():
-                        predicted, kl = model(src_sequence, src_attention_mask
-                                              trg_sequence, trg_attention_mask
+                        predicted, kl = model(src_sequence, src_attention_mask,
+                                              trg_sequence, trg_attention_mask,
                                               non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
                         nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)

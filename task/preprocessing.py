@@ -26,6 +26,10 @@ def preprocessing(args):
     logger.addHandler(handler)
     logger.propagate = False
 
+    #===================================#
+    #=============Data Load=============#
+    #===================================#
+
     write_log(logger, 'Start preprocessing!')
 
     src_list, trg_list = total_data_load(args)
@@ -37,13 +41,27 @@ def preprocessing(args):
     write_log(logger, 'Tokenizer setting...')
     start_time = time.time()
 
+    if args.data_name in ['WMT2016_Multimodal', 'WMT2014_de_en']:
+        src_language = 'de'
+        trg_language = 'en'
+    elif args.data_name in ['korpora', 'aihub_en_kr']:
+        src_language = 'en'
+        trg_language = 'kr'
+    elif args.data_name in ['GYAFC', 'WNC']:
+        src_language = 'en'
+        trg_language = 'en'
+    elif args.data_name in ['korean_hate_speech', 'NSMC']:
+        src_language = 'kr'
+    elif args.data_name in ['IMDB']:
+        src_language = 'en'
+
     if args.task in ['classification', 'reconstruction']:
         if args.tokenizer == 'spm':
             processed_src, word2id_src = spm_tokenizing(src_list, args, domain='src')
         # elif args.tokenizer == 'spacy':
         #     processed_src, processed_trg, word2id = spacy_tokenizing(src_list, trg_list, args)
         else:
-            processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src')
+            processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
 
     elif args.task in ['translation', 'style_transfer']:
         if args.tokenizer == 'spm':
@@ -52,8 +70,8 @@ def preprocessing(args):
         # elif args.tokenizer == 'spacy':
         #     processed_src, processed_trg, word2id = spacy_tokenizing(src_list, trg_list, args)
         else:
-            processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src')
-            processed_trg, word2id_trg = plm_tokenizing(trg_list, args, domain='trg')
+            processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
+            processed_trg, word2id_trg = plm_tokenizing(trg_list, args, domain='trg', language=trg_language)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
 
@@ -65,14 +83,14 @@ def preprocessing(args):
     start_time = time.time()
 
     # Path checking
-    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.data_name, args.tokenizer)
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
+        save_name = f'processed_{args.task}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
+        save_name = f'processed_{args.task}_{args.tokenizer}.hdf5'
 
     with h5py.File(os.path.join(save_path, save_name), 'w') as f:
         f.create_dataset('train_src_input_ids', data=processed_src['train']['input_ids'])
@@ -84,7 +102,7 @@ def preprocessing(args):
             f.create_dataset('train_trg_attention_mask', data=processed_trg['train']['attention_mask'])
             f.create_dataset('valid_trg_input_ids', data=processed_trg['valid']['input_ids'])
             f.create_dataset('valid_trg_attention_mask', data=processed_trg['valid']['attention_mask'])
-        else:
+        elif args.task in ['classification']:
             f.create_dataset('train_label', data=np.array(trg_list['train']).astype(int))
             f.create_dataset('valid_label', data=np.array(trg_list['valid']).astype(int))
 
@@ -94,7 +112,7 @@ def preprocessing(args):
         if args.task in ['translation', 'style_transfer']:
             f.create_dataset('test_trg_input_ids', data=processed_trg['test']['input_ids'])
             f.create_dataset('test_trg_attention_mask', data=processed_trg['test']['attention_mask'])
-        else:
+        elif args.task in ['classification']:
             f.create_dataset('test_label', data=np.array(trg_list['test']).astype(int))
 
     # Word2id pickle file save

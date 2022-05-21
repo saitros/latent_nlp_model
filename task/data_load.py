@@ -6,8 +6,8 @@ from sklearn.preprocessing import LabelEncoder
 def data_split_index(seq):
 
     paired_data_len = len(seq)
-    valid_num = int(paired_data_len * 0.15)
-    test_num = int(paired_data_len * 0.1)
+    valid_num = int(paired_data_len * 0.1)
+    test_num = int(paired_data_len * 0.03)
 
     valid_index = np.random.choice(paired_data_len, valid_num, replace=False)
     train_index = list(set(range(paired_data_len)) - set(valid_index))
