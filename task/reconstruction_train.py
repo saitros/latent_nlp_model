@@ -15,7 +15,7 @@ from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
-from model.plm.bart import Bart
+from model.plm.T5 import custom_T5
 from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
@@ -52,7 +52,9 @@ def recon_training(args):
 
     with h5py.File(os.path.join(save_path, save_name), 'r') as f:
         train_src_input_ids = f.get('train_src_input_ids')[:]
+        train_src_attention_mask = f.get('train_src_attention_mask')[:]
         valid_src_input_ids = f.get('valid_src_input_ids')[:]
+        valid_src_attention_mask = f.get('valid_src_attention_mask')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
@@ -99,10 +101,11 @@ def recon_training(args):
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational_mode=args.variational_mode, parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
-    else:
-        model = Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode, d_latent=args.d_latent,
-                     emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
-        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
+    elif args.model_type == 'T5':
+        model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
+                          variational_mode=args.variational_mode, 
+                          decoder_full_model=True, device=device)
+        tgt_subsqeunt_mask = None
     model = model.to(device)
     
     # 2) Optimizer & Learning rate scheduler setting
@@ -143,7 +146,8 @@ def recon_training(args):
             for i, (src_sequence, trg_sequence) in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
                 # Optimizer setting
-                optimizer.zero_grad(set_to_none=True)
+                # optimizer.zero_grad(set_to_none=True)
+                optimizer.zero_grad()
 
                 # Input, output setting
                 src_sequence = src_sequence.to(device, non_blocking=True)
@@ -158,7 +162,8 @@ def recon_training(args):
                 if phase == 'train':
 
                     with autocast():
-                        predicted, kl = model(src_sequence, trg_sequence, 
+                        predicted, kl = model(src_sequence, src_attention_mask
+                                              trg_sequence, trg_attention_mask
                                               non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
                         nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)

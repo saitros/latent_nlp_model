@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 def data_split_index(seq):
 
@@ -178,12 +179,19 @@ def total_data_load(args):
         valid_dat = pd.read_csv(os.path.join(args.data_path, 'dev.hate.csv'))
         test_dat = pd.read_csv(os.path.join(args.data_path, 'test.hate.no_label.csv'))
 
+        train_dat['label'] = train_dat['label'].replace('none', 0)
+        train_dat['label'] = train_dat['label'].replace('hate', 1)
+        train_dat['label'] = train_dat['label'].replace('offensive', 2)
+        valid_dat['label'] = valid_dat['label'].replace('none', 0)
+        valid_dat['label'] = valid_dat['label'].replace('hate', 1)
+        valid_dat['label'] = valid_dat['label'].replace('offensive', 2)
+
         src_list['train'] = train_dat['comments'].tolist()
         trg_list['train'] = train_dat['label'].tolist()
         src_list['valid'] = valid_dat['comments'].tolist()
         trg_list['valid'] = valid_dat['label'].tolist()
         src_list['test'] = test_dat['comments'].tolist()
-        trg_list['test'] = None
+        trg_list['test'] = [0 for _ in range(len(test_dat))]
 
     # if args.data_names == 'NSMC':
 

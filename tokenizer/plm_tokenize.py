@@ -1,7 +1,7 @@
 import argparse
 from transformers import  BertTokenizer, BartTokenizer, T5Tokenizer
 
-def plm_tokenizeing(sequence_dict: dict, args: argparse.Namespace, 
+def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace, 
                     domain: str = 'src', language: str = 'en'):
 
     # 1) Pre-setting
@@ -11,10 +11,8 @@ def plm_tokenizeing(sequence_dict: dict, args: argparse.Namespace,
     processed_sequences['test'] = dict()
 
     if domain == 'src':
-        vocab_size = args.src_vocab_size
         max_len = args.src_max_len
     if domain == 'trg':
-        vocab_size = args.trg_vocab_size
         max_len = args.trg_max_len
 
     if args.tokenizer == 'bert':
@@ -25,12 +23,15 @@ def plm_tokenizeing(sequence_dict: dict, args: argparse.Namespace,
     elif args.tokenizer == 'bart':
         tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
     elif args.tokenizer == 'T5':
-        tokenizer = T5Tokenizer.from_pretrained("t5-base")
+        if language == 'en':
+            tokenizer = T5Tokenizer.from_pretrained("t5-base")
+        elif language == 'kr':
+            tokenizer = T5Tokenizer.from_pretrained('KETI-AIR/ke-t5-base')
 
     for phase in ['train', 'valid', 'test']:
         encoded_dict = \
         tokenizer(
-            src_sequences[phase],
+            sequence_dict[phase],
             max_length=max_len,
             padding='max_length',
             truncation=True

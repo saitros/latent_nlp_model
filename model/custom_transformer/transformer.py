@@ -75,7 +75,9 @@ class Transformer(nn.Module):
         if emb_src_trg_weight_sharing:
             self.src_embedding.token.weight = self.trg_embedding.token.weight
             
-    def forward(self, src_input_ids, trg_input_ids, non_pad_position=None, tgt_subsqeunt_mask=None):
+    def forward(self, src_input_ids, src_attention_mask,
+                trg_input_ids, trg_attention_mask,
+                non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
         trg_input_ids_copy =  torch.clone(trg_input_ids)

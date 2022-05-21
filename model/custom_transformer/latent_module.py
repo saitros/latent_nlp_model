@@ -19,7 +19,11 @@ class Latent_module(nn.Module):
         self.kl_criterion = GaussianKLLoss()
         self.mmd_criterion = MaximumMeanDiscrepancyLoss()
 
-    def forward(self, encoder_out_src, encoder_out_trg):
+    def forward(self, encoder_out_src, encoder_out_trg=None):
+
+    #===================================#
+    #===SRC|TRG -> Z+Encoder_out(Sum)===#
+    #===================================#
 
         if self.variational_mode == 1:
             src_mu = self.context_to_mu(encoder_out_src) # (token, batch, d_latent)
@@ -38,6 +42,10 @@ class Latent_module(nn.Module):
             resize_z = self.z_to_context(z)
 
             encoder_out_total = torch.add(encoder_out_src, resize_z)
+
+    #===================================#
+    #==SRC|TRG -> Z+Encoder_out(View)===#
+    #===================================#
 
         if self.variational_mode == 2:
             batch_size = encoder_out_src.size(1)
@@ -68,6 +76,10 @@ class Latent_module(nn.Module):
 
             encoder_out_total = torch.add(encoder_out_src, resize_z)
 
+    #===================================#
+    #===========SRC -> Only Z===========#
+    #===================================#
+
         if self.variational_mode == 3:
             # Source sentence latent mapping
             src_mu = self.context_to_mu(encoder_out_src) # (token, batch, d_latent)
@@ -84,6 +96,10 @@ class Latent_module(nn.Module):
             z = eps.mul(std).add_(src_mu)
 
             encoder_out_total = self.z_to_context(z)
+
+    #===================================#
+    #=========SRC|TRG -> Only Z=========#
+    #===================================#
 
         if self.variational_mode == 4:
             # Source sentence latent mapping
@@ -108,6 +124,10 @@ class Latent_module(nn.Module):
             z = eps.mul(std).add_(src_mu)
 
             encoder_out_total = self.z_to_context(z)
+
+    #===================================#
+    #================WAE================#
+    #===================================#
 
         if self.variational_mode == 5:
             # Source sentence latent mapping
