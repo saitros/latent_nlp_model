@@ -123,7 +123,7 @@ class Transformer(nn.Module):
 
                 encoder_out, dist_loss = self.latent_module(encoder_out, encoder_out_trg)
             else:
-                dist_loss = 0
+                dist_loss = torch.tensor(0, dtype=torch.float)
 
             # Decoder
             for decoder in self.decoders:

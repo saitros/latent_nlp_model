@@ -3,11 +3,12 @@ import time
 import argparse
 # Import custom modules
 from task.preprocessing import preprocessing
-from task.translation_train import nmt_training
-from task.translation_test import nmt_testing
-from task.style_transfer.train import tst_training
-from task.style_transfer.test import tst_testing
-from task.reconstruction_train import recon_training
+# from task.translation_train import nmt_training
+# from task.translation_test import nmt_testing
+# from task.style_transfer.train import tst_training
+# from task.style_transfer.test import tst_testing
+# from task.reconstruction_train import recon_training
+from task.seq2seq_training import seq2seq_training
 # Utils
 from utils import str2bool, path_check
 
@@ -21,23 +22,26 @@ def main(args):
     if args.preprocessing:
         preprocessing(args)
 
-    if args.task == 'translation':
-        if args.training:
-            nmt_training(args)
+    if args.task in ['translation', 'style_transfer', 'reconstruction']:
+        seq2seq_training(args)
 
-        if args.testing:
-            nmt_testing(args)
+    # if args.task == 'translation':
+    #     if args.training:
+    #         nmt_training(args)
 
-    if args.task == 'style_transfer':
-        if args.training:
-            tst_training(args)
+    #     if args.testing:
+    #         nmt_testing(args)
 
-        if args.testing:
-            tst_testing(args)
+    # if args.task == 'style_transfer':
+    #     if args.training:
+    #         tst_training(args)
 
-    if args.task == 'reconstruction':
-        if args.training:
-            recon_training(args)
+    #     if args.testing:
+    #         tst_testing(args)
+
+    # if args.task == 'reconstruction':
+    #     if args.training:
+    #         recon_training(args)
 
         # if args.testing:
         #     recon_testing(args)

@@ -16,10 +16,10 @@ def pad_add(list_, max_len: int = 300):
 def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain='src'):
 
     # 0) Path Setting
-    if not os.path.exists(os.path.join(args.preprocess_path, args.task, args.data_name)):
-        os.mkdir(os.path.join(args.preprocess_path, args.task, args.data_name))
+    if not os.path.exists(os.path.join(args.preprocess_path, args.data_name)):
+        os.mkdir(os.path.join(args.preprocess_path, args.data_name))
 
-    preprocess_save_path = os.path.join(args.preprocess_path, args.task, args.data_name, args.tokenizer)
+    preprocess_save_path = os.path.join(args.preprocess_path, args.data_name, args.tokenizer)
     if not os.path.exists(preprocess_save_path):
         os.mkdir(preprocess_save_path)
 
@@ -79,16 +79,16 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain='src')
     processed_sequences['test']['input_ids'] = pad_add(test_src_input_ids, max_len)
 
     # # Attention mask encoding
-    # processed_sequences['train']['attention_mask'] = list()
-    # processed_sequences['valid']['attention_mask'] = list()
-    # processed_sequences['test']['attention_mask'] = list()
+    processed_sequences['train']['attention_mask'] = list()
+    processed_sequences['valid']['attention_mask'] = list()
+    processed_sequences['test']['attention_mask'] = list()
 
-    # for ind in tqdm(processed_sequences['train']['input_ids']):
-    #     processed_sequences['train']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
-    # for ind in processed_sequences['valid']['input_ids']:
-    #     processed_sequences['valid']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
-    # for ind in processed_sequences['test']['input_ids']:
-    #     processed_sequences['test']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+    for ind in tqdm(processed_sequences['train']['input_ids']):
+        processed_sequences['train']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+    for ind in processed_sequences['valid']['input_ids']:
+        processed_sequences['valid']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+    for ind in processed_sequences['test']['input_ids']:
+        processed_sequences['test']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
 
     # Segment encoding
     # processed_src['train']['token_type_ids'] = list()
