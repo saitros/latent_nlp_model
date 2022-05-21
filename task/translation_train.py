@@ -12,6 +12,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
+from latent_machine_translation.model.plm.T5 import custom_T5
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
@@ -52,9 +53,13 @@ def nmt_training(args):
 
     with h5py.File(os.path.join(save_path, save_name), 'r') as f:
         train_src_input_ids = f.get('train_src_input_ids')[:]
+        train_src_attention_mask = f.get('train_src_attention_mask')[:]
         train_trg_input_ids = f.get('train_trg_input_ids')[:]
+        train_trg_attention_mask = f.get('train_trg_attention_mask')[:]
         valid_src_input_ids = f.get('valid_src_input_ids')[:]
+        valid_src_attention_mask = f.get('valid_src_attention_mask')[:]
         valid_trg_input_ids = f.get('valid_trg_input_ids')[:]
+        valid_trg_attention_mask = f.get('valid_trg_attention_mask')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
@@ -69,9 +74,11 @@ def nmt_training(args):
 
     # 2) Dataloader setting
     dataset_dict = {
-        'train': CustomDataset(src_list=train_src_input_ids, trg_list=train_trg_input_ids, 
+        'train': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                               trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-        'valid': CustomDataset(src_list=valid_src_input_ids, trg_list=valid_trg_input_ids,
+        'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                               trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
     }
     dataloader_dict = {
@@ -103,10 +110,10 @@ def nmt_training(args):
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational_mode=args.variational_mode, parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
-    else:
-        model = Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode, d_latent=args.d_latent,
+    elif args.model_type == 'T5':
+        model = custom_T5(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode, d_latent=args.d_latent,
                      emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
-        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
+        tgt_subsqeunt_mask = None
     model = model.to(device)
     
     # 2) Optimizer & Learning rate scheduler setting
