@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import sentencepiece as spm
+from tqdm import tqdm
 
 def pad_add(list_, max_len: int = 300):
     ind_list = list()
@@ -11,7 +12,7 @@ def pad_add(list_, max_len: int = 300):
             ind_list.append(ind)
     return np.array(ind_list, dtype=np.int32)
 
-def spm_tokenizing(sequence_dict, args, domain= 'src'):
+def spm_tokenizing(sequence_dict, args, domain='src'):
 
     # 0) Path Setting
     if not os.path.exists(os.path.join(args.preprocess_path, args.task, args.data_name)):
@@ -43,7 +44,7 @@ def spm_tokenizing(sequence_dict, args, domain= 'src'):
 
     spm.SentencePieceProcessor()
     spm.SentencePieceTrainer.Train(
-        f'--input={preprocess_save_path}/src.txt --model_type={args.sentencepiece_model} '
+        f'--input={preprocess_save_path}/{domain}.txt --model_type={args.sentencepiece_model} '
         f'--model_prefix={preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size} '
         f'--vocab_size={vocab_size} --character_coverage={character_coverage}'
         f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
@@ -59,15 +60,15 @@ def spm_tokenizing(sequence_dict, args, domain= 'src'):
     spm_src.Load(f'{preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size}.model')
 
     # Encoding
-    train_src_input_ids = tuple(
+    train_src_input_ids = list(
         [args.bos_id] + spm_src.encode(
                             text, enable_sampling=True, alpha=0.1, nbest_size=-1, out_type=int) + \
         [args.eos_id] for text in sequence_dict['train']
     )
-    valid_src_input_ids = tuple(
+    valid_src_input_ids = list(
         [args.bos_id] + spm_src.encode(text, out_type=int) + [args.eos_id] for text in sequence_dict['valid']
     )
-    test_src_input_ids = tuple(
+    test_src_input_ids = list(
         [args.bos_id] + spm_src.encode(text, out_type=int) + [args.eos_id] for text in sequence_dict['test']
     )
 
@@ -76,17 +77,17 @@ def spm_tokenizing(sequence_dict, args, domain= 'src'):
     processed_sequences['valid']['input_ids'] = pad_add(valid_src_input_ids, max_len)
     processed_sequences['test']['input_ids'] = pad_add(test_src_input_ids, max_len)
 
-    # Attention mask encoding
-    processed_src['train']['attention_mask'] = list()
-    processed_src['valid']['attention_mask'] = list()
-    processed_src['test']['attention_mask'] = list()
+    # # Attention mask encoding
+    # processed_sequences['train']['attention_mask'] = list()
+    # processed_sequences['valid']['attention_mask'] = list()
+    # processed_sequences['test']['attention_mask'] = list()
 
-    for ind in processed_src['train']['input_ids']:
-        processed_src['train']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(max_len)])
-    for ind in processed_src['valid']['input_ids']:
-        processed_src['valid']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(max_len)])
-    for ind in processed_src['test']['input_ids']:
-        processed_src['test']['attention_mask'].append([1 if i <= ind.index(args.eos_id) else 0 for i in range(max_len)])
+    # for ind in tqdm(processed_sequences['train']['input_ids']):
+    #     processed_sequences['train']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+    # for ind in processed_sequences['valid']['input_ids']:
+    #     processed_sequences['valid']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+    # for ind in processed_sequences['test']['input_ids']:
+    #     processed_sequences['test']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
 
     # Segment encoding
     # processed_src['train']['token_type_ids'] = list()

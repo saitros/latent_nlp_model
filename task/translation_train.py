@@ -20,7 +20,7 @@ from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
 
-def tst_training(args):
+def nmt_training(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     #===================================#
@@ -44,11 +44,11 @@ def tst_training(args):
     write_log(logger, "Load data...")
     gc.disable()
 
-    save_path = os.path.join(args.preprocess_path, args.task, args.data_name, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.tokenizer}.hdf5'
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
 
     with h5py.File(os.path.join(save_path, save_name), 'r') as f:
         train_src_input_ids = f.get('train_src_input_ids')[:]
@@ -118,7 +118,7 @@ def tst_training(args):
     start_epoch = 0
     if args.resume:
         write_log(logger, 'Resume model...')
-        checkpoint = torch.load(os.path.join(args.save_path, 'checkpoint.pth.tar'))
+        checkpoint = torch.load(os.path.join(args.model_save_path, 'checkpoint.pth.tar'))
         start_epoch = checkpoint['epoch'] + 1
         model.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -162,11 +162,11 @@ def tst_training(args):
                 if phase == 'train':
 
                     with autocast():
-                        predicted, dist_loss = model(src_sequence, trg_sequence, 
+                        predicted, kl = model(src_sequence, trg_sequence, 
                                               non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        gen_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
-                        total_loss = gen_loss + dist_loss
+                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
+                        total_loss = nmt_loss + kl
 
                     scaler.scale(total_loss).backward()
                     if args.clip_grad_norm > 0:
@@ -178,10 +178,10 @@ def tst_training(args):
                     if args.scheduler in ['constant', 'warmup']:
                         scheduler.step()
                     if args.scheduler == 'reduce_train':
-                        scheduler.step(total_loss)
+                        scheduler.step(nmt_loss)
 
                     # Print loss value only training
-                    if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train'])-1:
+                    if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
                         acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.3f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
@@ -194,15 +194,15 @@ def tst_training(args):
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
-                        predicted, dist_loss = model(src_sequence, trg_sequence, 
+                        predicted, kl = model(src_sequence, trg_sequence, 
                                               non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        gen_loss = F.cross_entropy(predicted, trg_sequence_gold)
-                        total_loss = gen_loss + dist_loss
+                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold)
+                        total_loss = nmt_loss + kl
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
 
             if phase == 'valid':
-                # scheduler
+
                 if args.scheduler == 'reduce_valid':
                     scheduler.step(val_loss)
                 if args.scheduler == 'lambda':

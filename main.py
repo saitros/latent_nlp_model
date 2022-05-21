@@ -2,13 +2,12 @@
 import time
 import argparse
 # Import custom modules
-# from task.translation.preprocessing import preprocessing as nmt_preprocessing
-from task.translation.train import training as nmt_training
-from task.translation.test import testing as nmt_testing
-# from task.style_transfer.preprocessing import preprocessing
-from task.style_transfer.train import training
-from task.style_transfer.test import testing
 from task.preprocessing import preprocessing
+from task.translation_train import nmt_training
+from task.translation_test import nmt_testing
+from task.style_transfer.train import tst_training
+from task.style_transfer.test import tst_testing
+from task.reconstruction_train import recon_training
 # Utils
 from utils import str2bool, path_check
 
@@ -19,10 +18,10 @@ def main(args):
     # Path setting
     path_check(args)
 
-    if args.task == 'translation':
-        if args.preprocessing:
-            preprocessing(args)
+    if args.preprocessing:
+        preprocessing(args)
 
+    if args.task == 'translation':
         if args.training:
             nmt_training(args)
 
@@ -30,14 +29,18 @@ def main(args):
             nmt_testing(args)
 
     if args.task == 'style_transfer':
-        if args.preprocessing:
-            preprocessing(args)
-
         if args.training:
-            training(args)
+            tst_training(args)
 
         if args.testing:
-            testing(args)
+            tst_testing(args)
+
+    if args.task == 'reconstruction':
+        if args.training:
+            recon_training(args)
+
+        # if args.testing:
+        #     recon_testing(args)
 
     # Time calculate
     print(f'Done! ; {round((time.time()-total_start_time)/60, 3)}min spend')
@@ -45,7 +48,7 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    parser.add_argument('--task', default='translation', choices=['translation','style_transfer'],
+    parser.add_argument('--task', default='translation', choices=['translation','style_transfer','reconstruction'],
                         help='')
     parser.add_argument('--preprocessing', action='store_true')
     parser.add_argument('--training', action='store_true')
@@ -84,6 +87,7 @@ if __name__=='__main__':
                         help='Padding token index; Default is 1')
     parser.add_argument('--eos_id', default=2, type=int,
                         help='Padding token index; Default is 2')
+    parser.add_argument('--src_trg_reverse', action='store_true')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[

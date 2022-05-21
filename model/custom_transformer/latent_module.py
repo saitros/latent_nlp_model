@@ -87,6 +87,30 @@ class Latent_module(nn.Module):
 
         if self.variational_mode == 4:
             # Source sentence latent mapping
+            src_mu = self.context_to_mu(encoder_out_src) # (token, batch, d_latent)
+            src_logvar = self.context_to_logvar(encoder_out_src) # (token, batch, d_latent)
+
+            trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
+            trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
+
+            dist_loss = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
+
+            # Re-parameterization
+            std = src_logvar.mul(0.5).exp_()
+            eps = Variable(std.data.new(std.size()).normal_())
+            z = eps.mul(std).add_(src_mu)
+
+            resize_z = self.z_to_context(z)
+
+            # Re-parameterization
+            std = src_logvar.mul(0.5).exp_()
+            eps = Variable(std.data.new(std.size()).normal_())
+            z = eps.mul(std).add_(src_mu)
+
+            encoder_out_total = self.z_to_context(z)
+
+        if self.variational_mode == 5:
+            # Source sentence latent mapping
             src_latent = self.context_to_latent(encoder_out) # (token, batch, d_latent)
             trg_latent = self.context_to_latent(encoder_out_trg) # (token, batch, d_latent)
 

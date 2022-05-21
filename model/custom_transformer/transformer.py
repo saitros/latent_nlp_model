@@ -5,9 +5,9 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn.modules.activation import MultiheadAttention
 
-from latent_machine_translation.model.custom_transformer.latent_module import Latent_module
 # Import custom modules
 from .embedding import TransformerEmbedding
+from .latent_module import Latent_module
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_num, trg_vocab_num, pad_idx=0, bos_idx=1, eos_idx=2, 
@@ -63,7 +63,7 @@ class Transformer(nn.Module):
 
         # Variational model setting
         self.variational_mode = variational_mode
-        self.Latent_module = Latent_module(d_model, d_latent, variational_mode)
+        self.latent_module = Latent_module(d_model, d_latent, variational_mode)
         
         # Weight sharing
         # self.x_logit_scale = 1.
@@ -119,7 +119,7 @@ class Transformer(nn.Module):
                         encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
                                                   src_key_padding_mask=tgt_key_padding_mask_)
 
-                encoder_out, dist_loss = Latent_module(encoder_out, encoder_out_trg)
+                encoder_out, dist_loss = self.latent_module(encoder_out, encoder_out_trg)
             else:
                 dist_loss = 0
 

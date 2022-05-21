@@ -187,5 +187,9 @@ def total_data_load(args):
 
     # if args.data_names == 'NSMC':
 
+    if args.src_trg_reverse:
+        src_list_copy = trg_list
+        trg_list = src_list
+        src_list = src_list_copy
 
     return src_list, trg_list

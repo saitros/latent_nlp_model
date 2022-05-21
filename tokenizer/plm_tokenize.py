@@ -1,7 +1,8 @@
 import argparse
 from transformers import  BertTokenizer, BartTokenizer, T5Tokenizer
 
-def plm_tokenizeing(sequence_dict: dict, args: argparse.Namespace, domain: str = 'src'):
+def plm_tokenizeing(sequence_dict: dict, args: argparse.Namespace, 
+                    domain: str = 'src', language: str = 'en'):
 
     # 1) Pre-setting
     processed_sequences = dict()
@@ -17,7 +18,10 @@ def plm_tokenizeing(sequence_dict: dict, args: argparse.Namespace, domain: str =
         max_len = args.trg_max_len
 
     if args.tokenizer == 'bert':
-        tokenizer =  BertTokenizer.from_pretrained('bert-base-cased')
+        if language == 'en':
+            tokenizer =  BertTokenizer.from_pretrained('bert-base-cased')
+        elif language == 'kr':
+            tokenizer =  BertTokenizer.from_pretrained('beomi/kcbert-base')
     elif args.tokenizer == 'bart':
         tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
     elif args.tokenizer == 'T5':
