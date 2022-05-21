@@ -171,4 +171,21 @@ def total_data_load(args):
     #==========Classification===========#
     #===================================#
 
+    if args.data_name == 'korean_hate_speech':
+        args.data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
+
+        train_dat = pd.read_csv(os.path.join(args.data_path, 'train.hate.csv'))
+        valid_dat = pd.read_csv(os.path.join(args.data_path, 'dev.hate.csv'))
+        test_dat = pd.read_csv(os.path.join(args.data_path, 'test.hate.no_label.csv'))
+
+        src_list['train'] = train_dat['comments'].tolist()
+        trg_list['train'] = train_dat['label'].tolist()
+        src_list['valid'] = valid_dat['comments'].tolist()
+        trg_list['valid'] = valid_dat['label'].tolist()
+        src_list['test'] = test_dat['comments'].tolist()
+        trg_list['test'] = None
+
+    # if args.data_names == 'NSMC':
+
+
     return src_list, trg_list

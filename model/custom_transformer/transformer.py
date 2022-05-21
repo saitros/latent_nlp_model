@@ -4,9 +4,10 @@ from torch import nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn.modules.activation import MultiheadAttention
+
+from latent_machine_translation.model.custom_transformer.latent_module import Latent_module
 # Import custom modules
 from .embedding import TransformerEmbedding
-from ..loss import GaussianKLLoss, MaximumMeanDiscrepancyLoss
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_num, trg_vocab_num, pad_idx=0, bos_idx=1, eos_idx=2, 
@@ -62,24 +63,8 @@ class Transformer(nn.Module):
 
         # Variational model setting
         self.variational_mode = variational_mode
-        if self.variational_mode == 1 or self.variational_mode == 2:
-            self.context_to_mu = nn.Linear(d_model, d_latent)
-            self.context_to_logvar = nn.Linear(d_model, d_latent)
-            self.z_to_context = nn.Linear(d_latent, d_model)
-
-            self.kl_criterion = GaussianKLLoss()
-
-        if self.variational_mode == 3:
-            self.context_to_latent = nn.Linear(d_model, d_latent)
-            self.latent_to_context = nn.Linear(d_latent, d_model)
-
-            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
-
-        if self.variational_mode == 4:
-            self.context_to_mu = nn.Linear(d_model, d_latent)
-            self.context_to_logvar = nn.Linear(d_model, d_latent)
-            self.z_to_context = nn.Linear(d_latent, d_model)
-
+        self.Latent_module = Latent_module(d_model, d_latent, variational_mode)
+        
         # Weight sharing
         # self.x_logit_scale = 1.
         # if trg_emb_prj_weight_sharing:
@@ -126,95 +111,15 @@ class Transformer(nn.Module):
             for encoder in self.encoders:
                 encoder_out = encoder(encoder_out, src_key_padding_mask=src_key_padding_mask)
 
-            if self.variational_mode == 1:
-                # Source sentence latent mapping
-                src_mu = self.context_to_mu(encoder_out) # (token, batch, d_latent)
-                src_logvar = self.context_to_logvar(encoder_out) # (token, batch, d_latent)
+            # Variational
+            if self.variational_mode != 0:
                 # Target sentence latent mapping
                 with torch.no_grad():
                     for encoder in self.encoders:
                         encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
                                                   src_key_padding_mask=tgt_key_padding_mask_)
-                trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
-                trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
 
-                dist_loss = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
-
-                # Re-parameterization
-                std = src_logvar.mul(0.5).exp_()
-                eps = Variable(std.data.new(std.size()).normal_())
-                z = eps.mul(std).add_(src_mu)
-
-                resize_z = self.z_to_context(z)
-
-                encoder_out = torch.add(encoder_out, resize_z)
-
-            if self.variational_mode == 2:
-                # Source sentence latent mapping
-                src_mu = self.context_to_mu(encoder_out) # (token, batch, d_latent)
-                src_logvar = self.context_to_logvar(encoder_out) # (token, batch, d_latent)
-                # Target sentence latent mapping
-                with torch.no_grad():
-                    for encoder in self.encoders:
-                        encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
-                                                  src_key_padding_mask=tgt_key_padding_mask_)
-                trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
-                trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
-
-                mu1 = src_mu.view(encoder_out.size(1), -1)
-                logvar1 = src_logvar.view(encoder_out.size(1), -1)
-                mu2 = trg_mu.view(encoder_out.size(1), -1)
-                logvar2 = trg_logvar.view(encoder_out.size(1), -1)
-
-                numerator = logvar1.exp() + torch.pow(mu1 - mu2, 2)
-                fraction = torch.div(numerator, (logvar2.exp()))
-
-                dist_loss = 0.5 * torch.sum(logvar2 - logvar1 + fraction - 1, dim=0)
-                dist_loss = dist_loss.mean()
-
-                # Re-parameterization
-                std = src_logvar.mul(0.5).exp_()
-                eps = Variable(std.data.new(std.size()).normal_())
-                z = eps.mul(std).add_(src_mu)
-
-                resize_z = self.z_to_context(z)
-
-                encoder_out = torch.add(encoder_out, resize_z)
-
-            elif self.variational_mode == 3:
-                # Source sentence latent mapping
-                src_latent = self.context_to_latent(encoder_out) # (token, batch, d_latent)
-                # Target sentence latent mapping
-                with torch.no_grad():
-                    for encoder in self.encoders:
-                        encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
-                                                  src_key_padding_mask=tgt_key_padding_mask_)
-                trg_latent = self.context_to_latent(encoder_out_trg) # (token, batch, d_latent)
-
-                dist_loss = self.mmd_criterion(src_latent, trg_latent, 2) # z_var is 2 now
-
-                #
-                src_latent = self.latent_to_context(src_latent)
-
-                encoder_out = torch.add(encoder_out, src_latent)
-
-            elif self.variational_mode == 4:
-                # Source sentence latent mapping
-                src_mu = self.context_to_mu(encoder_out) # (token, batch, d_latent)
-                src_logvar = self.context_to_logvar(encoder_out) # (token, batch, d_latent)
-
-                # KL Divergence
-                mu = src_mu.view(encoder_out.size(1), -1)
-                logvar = src_logvar.view(encoder_out.size(1), -1)
-                dist_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-
-                # Re-parameterization
-                std = src_logvar.mul(0.5).exp_()
-                eps = Variable(std.data.new(std.size()).normal_())
-                z = eps.mul(std).add_(src_mu)
-
-                encoder_out = self.z_to_context(z)
-                
+                encoder_out, dist_loss = Latent_module(encoder_out, encoder_out_trg)
             else:
                 dist_loss = 0
 

@@ -7,6 +7,7 @@ import logging
 from tokenizer.spm_tokenize import spm_tokenizing
 from tokenizer.plm_tokenize import plm_tokenizeing
 from tokenizer.spacy_tokenize import spacy_tokenizing
+from task.data_load import total_data_load
 from utils import TqdmLoggingHandler, write_log
 
 def preprocessing(args):
@@ -83,8 +84,8 @@ def preprocessing(args):
             f.create_dataset('valid_trg_input_ids', data=processed_trg['valid']['input_ids'])
             f.create_dataset('valid_trg_attention_mask', data=processed_trg['valid']['attention_mask'])
         else:
-            f.create_dataset('train_label', data=trg_list)
-            f.create_dataset('valid_label', data=trg_list)
+            f.create_dataset('train_label', data=trg_list['train'])
+            f.create_dataset('valid_label', data=trg_list['valid'])
 
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
         f.create_dataset('test_src_input_ids', data=processed_src['test']['input_ids'])
@@ -93,12 +94,18 @@ def preprocessing(args):
             f.create_dataset('test_trg_input_ids', data=processed_trg['test']['input_ids'])
             f.create_dataset('test_trg_attention_mask', data=processed_trg['test']['attention_mask'])
         else:
-            f.create_dataset('test_label', data=trg_list)
+            f.create_dataset('test_label', data=trg_list['test'])
 
-    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'wb') as f:
-        pickle.dump({
+    # Word2id pickle file save
+    if args.task == 'classification':
+        word2id_dict = {'src_word2id' : word2id_src}
+    else:
+        word2id_dict = {
             'src_word2id': word2id_src,
             'trg_word2id': word2id_trg
-        }, f)
+        }
+    
+    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'wb') as f:
+        pickle.dump(word2id_dict, f)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')

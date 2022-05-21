@@ -13,9 +13,14 @@ This code is written in Python. Dependencies include
 #### Neural Machine Translation
 * WMT 2014 translation task **DE -> EN** (--task=translation --data_name=WMT2014_de_en)
 * WMT 2016 multimodal **DE -> EN** (--task=translation --data_name=WMT2016_Multimodal)
+* Korpora **EN -> KR** (--task=translation --data_name=korpora)
 #### Text Style Transfer
 * Grammarly's Yahho Answer Formality Corpus **Informal -> Formal** (--task=style_transfer --data_name=GYAFC)
 * Wiki Neutrality Corpus **Biased -> Neutral** (--task=style_transfer --data_name=WNC)
+#### Classification
+* IMDB (Coming soon...)
+* NSMC (Coming soon...)
+* Korean Hate Speech (Coming soon...)
 
 ## Preprocessing
 

@@ -2,12 +2,13 @@
 import time
 import argparse
 # Import custom modules
-from task.translation.preprocessing import preprocessing as nmt_preprocessing
+# from task.translation.preprocessing import preprocessing as nmt_preprocessing
 from task.translation.train import training as nmt_training
 from task.translation.test import testing as nmt_testing
-from task.style_transfer.preprocessing import preprocessing
+# from task.style_transfer.preprocessing import preprocessing
 from task.style_transfer.train import training
 from task.style_transfer.test import testing
+from task.preprocessing import preprocessing
 # Utils
 from utils import str2bool, path_check
 
@@ -20,7 +21,7 @@ def main(args):
 
     if args.task == 'translation':
         if args.preprocessing:
-            nmt_preprocessing(args)
+            preprocessing(args)
 
         if args.training:
             nmt_training(args)
