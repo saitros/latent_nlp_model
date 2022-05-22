@@ -73,6 +73,8 @@ def seq2seq_training(args):
         if args.task in ['translation', 'style_transfer']:
             trg_word2id = data_['trg_word2id']
             trg_vocab_num = len(trg_word2id)
+        elif args.task in ['reconstruction']:
+            trg_vocab_num = src_vocab_num
         del data_
 
     gc.enable()

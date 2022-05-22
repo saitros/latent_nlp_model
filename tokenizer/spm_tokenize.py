@@ -47,7 +47,7 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain='src')
     spm.SentencePieceTrainer.Train(
         f'--input={preprocess_save_path}/{domain}.txt --model_type={args.sentencepiece_model} '
         f'--model_prefix={preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size} '
-        f'--vocab_size={vocab_size} --character_coverage={character_coverage}'
+        f'--vocab_size={vocab_size} --character_coverage={character_coverage} '
         f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
         f'--split_by_whitespace=true')
 
