@@ -193,9 +193,77 @@ def total_data_load(args):
         src_list['test'] = test_dat['comments'].tolist()
         trg_list['test'] = [0 for _ in range(len(test_dat))]
 
+    if args.data_name == 'IMDB':
+        args.data_path = os.path.join(args.data_path,'text_classification/IMDB')
+
+        if args.with_eda:
+            train_dat = pd.read_csv(os.path.join(args.data_path, 'train_aug.csv'))
+        else:
+            train_dat = pd.read_csv(os.path.join(args.data_path, 'train.csv'))
+
+        test_dat = pd.read_csv(os.path.join(args.data_path, 'test.csv'))
+        test_dat['sentiment'] = test_dat['sentiment'].replace('positive', 0)
+        test_dat['sentiment'] = test_dat['sentiment'].replace('negative', 1)
+
+        train_index, valid_index, test_index = data_split_index(train_dat)
+
+        src_list['train'] = [train_dat['comment'].tolist()[i] for i in train_index]
+        trg_list['train'] = [train_dat['sentiment'].tolist()[i] for i in train_index]
+
+        src_list['valid'] = [train_dat['comment'].tolist()[i] for i in valid_index]
+        trg_list['valid'] = [train_dat['sentiment'].tolist()[i] for i in valid_index]
+
+        src_list['test'] = test_dat['comment'].tolist()
+        trg_list['test'] = test_dat['sentiment'].tolist()
+
+    if args.data_name == 'ProsCons':
+        args.data_path = os.path.join(args.data_path,'text_classification/ProsCons')
+
+        if args.with_eda:
+            train_dat = pd.read_csv(os.path.join(args.data_path, 'train_aug.csv'))
+        else:
+            train_dat = pd.read_csv(os.path.join(args.data_path, 'train.csv'), names=['label', 'description'])
+
+        test_dat = pd.read_csv(os.path.join(args.data_path, 'test.csv'), names=['label', 'description'])
+
+        train_index, valid_index, test_index = data_split_index(train_dat)
+
+        src_list['train'] = [train_dat['description'].tolist()[i] for i in train_index]
+        trg_list['train'] = [train_dat['label'].tolist()[i] for i in train_index]
+
+        src_list['valid'] = [train_dat['description'].tolist()[i] for i in valid_index]
+        trg_list['valid'] = [train_dat['label'].tolist()[i] for i in valid_index]
+
+        src_list['test'] = test_dat['description'].tolist()
+        trg_list['test'] = test_dat['label'].tolist()
+
+    if args.data_name == 'MR':
+        args.data_path = os.path.join(args.data_path,'text_classification/MR')
+
+        if args.with_eda:
+            train_dat = pd.read_csv(os.path.join(args.data_path, 'train_aug.csv'))
+        else:
+            train_dat = pd.read_csv(os.path.join(args.data_path, 'train.csv'), names=['label', 'description'])
+
+        test_dat = pd.read_csv(os.path.join(args.data_path, 'test.csv'), names=['label', 'description'])
+
+        train_index, valid_index, test_index = data_split_index(train_dat)
+
+        src_list['train'] = [train_dat['description'].tolist()[i] for i in train_index]
+        trg_list['train'] = [train_dat['label'].tolist()[i] for i in train_index]
+
+        src_list['valid'] = [train_dat['description'].tolist()[i] for i in valid_index]
+        trg_list['valid'] = [train_dat['label'].tolist()[i] for i in valid_index]
+
+        src_list['test'] = test_dat['description'].tolist()
+        trg_list['test'] = test_dat['label'].tolist()
+
     # if args.data_names == 'NSMC':
 
     if args.src_trg_reverse:
+
+        assert args.task != 'classification'
+
         src_list_copy = trg_list
         trg_list = src_list
         src_list = src_list_copy

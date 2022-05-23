@@ -9,6 +9,7 @@ from task.preprocessing import preprocessing
 # from task.style_transfer.test import tst_testing
 # from task.reconstruction_train import recon_training
 from task.seq2seq_training import seq2seq_training
+from task.seq2label_training import seq2label_training
 # Utils
 from utils import str2bool, path_check
 
@@ -22,8 +23,12 @@ def main(args):
     if args.preprocessing:
         preprocessing(args)
 
-    if args.task in ['translation', 'style_transfer', 'reconstruction']:
-        seq2seq_training(args)
+    if args.training:
+        if args.task in ['translation', 'style_transfer', 'reconstruction']:
+            seq2seq_training(args)
+
+        if args.task in ['classification']:
+            seq2label_training(args)
 
     # if args.task == 'translation':
     #     if args.training:
@@ -52,7 +57,7 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    parser.add_argument('--task', default='translation', choices=['translation','style_transfer','reconstruction'],
+    parser.add_argument('--task', default='translation', choices=['translation','style_transfer','reconstruction','classification'],
                         help='')
     parser.add_argument('--preprocessing', action='store_true')
     parser.add_argument('--training', action='store_true')
@@ -92,10 +97,11 @@ if __name__=='__main__':
     parser.add_argument('--eos_id', default=2, type=int,
                         help='Padding token index; Default is 2')
     parser.add_argument('--src_trg_reverse', action='store_true')
+    parser.add_argument('--with_eda', action='store_true')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
-        'custom_transformer', 'bart', 'T5'
+        'custom_transformer', 'bart', 'T5', 'bert'
             ], help='Model type selection; Default is custom_transformer')
     parser.add_argument('--isPreTrain', default=False, type=str2bool,
                         help='Using pre-trained model; Default is False')

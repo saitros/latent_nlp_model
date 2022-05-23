@@ -8,6 +8,7 @@ from tqdm import tqdm
 from time import time
 # Import PyTorch
 import torch
+import torch.nn as nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
@@ -20,7 +21,9 @@ from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
 
-def seq2seq_training(args):
+from transformers import BertForSequenceClassification
+
+def seq2label_training(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     #===================================#
@@ -55,16 +58,9 @@ def seq2seq_training(args):
         train_src_attention_mask = f.get('train_src_attention_mask')[:]
         valid_src_input_ids = f.get('valid_src_input_ids')[:]
         valid_src_attention_mask = f.get('valid_src_attention_mask')[:]
-        if args.task in ['translation', 'style_transfer']:
-            train_trg_input_ids = f.get('train_trg_input_ids')[:]
-            train_trg_attention_mask = f.get('train_trg_attention_mask')[:]
-            valid_trg_input_ids = f.get('valid_trg_input_ids')[:]
-            valid_trg_attention_mask = f.get('valid_trg_attention_mask')[:]
-        elif args.task in ['reconstruction']:
-            train_trg_input_ids = f.get('train_src_input_ids')[:]
-            train_trg_attention_mask = f.get('train_src_attention_mask')[:]
-            valid_trg_input_ids = f.get('valid_src_input_ids')[:]
-            valid_trg_attention_mask = f.get('valid_src_attention_mask')[:]
+        if args.task in ['classification']:
+            train_trg_list = f.get('train_label')[:]
+            valid_trg_list = f.get('valid_label')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
@@ -80,12 +76,10 @@ def seq2seq_training(args):
 
     # 2) Dataloader setting
     dataset_dict = {
-        'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
-                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-        'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
+        'train': Seq2LabelDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                  trg_list=train_trg_list, min_len=args.min_len, src_max_len=args.src_max_len),
+        'valid': Seq2LabelDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                  trg_list=valid_trg_list, min_len=args.min_len, src_max_len=args.src_max_len),
     }
     dataloader_dict = {
         'train': DataLoader(dataset_dict['train'], drop_last=True,
@@ -120,12 +114,16 @@ def seq2seq_training(args):
         model = custom_T5(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode, d_latent=args.d_latent,
                      emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
+    elif args.model_type == 'bert':
+        model = BertForSequenceClassification.from_pretrained('bert-base-cased', num_labels=2)
+        tgt_subsqeunt_mask = None
     model = model.to(device)
     
     # 2) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)
     scheduler = shceduler_select(optimizer, dataloader_dict, args)
     scaler = GradScaler()
+    criterion = nn.CrossEntropyLoss()
 
     # 3) Model resume
     start_epoch = 0
@@ -165,29 +163,24 @@ def seq2seq_training(args):
                 # Input, output setting
                 src_sequence = batch_iter[0]
                 src_att = batch_iter[1]
-                trg_sequence = batch_iter[2]
-                trg_att = batch_iter[3]
+                trg_label = batch_iter[2]
 
                 src_sequence = src_sequence.to(device, non_blocking=True)
                 src_att = src_att.to(device, non_blocking=True)
-                trg_sequence = trg_sequence.to(device, non_blocking=True)
-                trg_att = trg_att.to(device, non_blocking=True)
-
-                # Output pre-processing
-                trg_sequence_gold = trg_sequence[:, 1:]
-                non_pad = trg_sequence_gold != args.pad_id
-                trg_sequence_gold = trg_sequence_gold[non_pad].contiguous().view(-1)
+                trg_label = trg_label.to(device, non_blocking=True)
 
                 # Train
                 if phase == 'train':
 
                     with autocast():
-                        predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
-                                                     trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
-                                                     non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
-                        total_loss = nmt_loss + dist_loss
+                        # predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
+                        #                              trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
+                        #                              non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                        predicted = model(input_ids=src_sequence, attention_mask=src_att)
+                        out = predicted.logits
+                        loss = criterion(out, trg_label)
+                        # total_loss = loss + dist_loss
+                        total_loss = loss
 
                     scaler.scale(total_loss).backward()
                     if args.clip_grad_norm > 0:
@@ -203,7 +196,7 @@ def seq2seq_training(args):
 
                     # Print loss value only training
                     if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
-                        acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                        acc = (out.max(dim=1)[1] == trg_label).sum() / len(trg_label)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.3f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
                             total_loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
@@ -215,12 +208,13 @@ def seq2seq_training(args):
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
-                        predicted, kl = model(src_sequence, trg_sequence, 
-                                              non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold)
-                        total_loss = nmt_loss + kl
+                        predicted = model(input_ids=src_sequence, attention_mask=src_att)
+                        out = predicted.logits
+                        loss = criterion(out, trg_label)
+                        # total_loss = loss + dist_loss
+                        total_loss = loss
                     val_loss += total_loss.item()
-                    val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                    val_acc += (out.max(dim=1)[1] == trg_label).sum() / len(trg_label)
 
             if phase == 'valid':
 

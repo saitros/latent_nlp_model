@@ -52,7 +52,7 @@ def preprocessing(args):
         trg_language = 'en'
     elif args.data_name in ['korean_hate_speech', 'NSMC']:
         src_language = 'kr'
-    elif args.data_name in ['IMDB']:
+    elif args.data_name in ['IMDB', 'ProsCons', 'MR']:
         src_language = 'en'
 
     if args.task in ['classification', 'reconstruction']:

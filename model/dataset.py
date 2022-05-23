@@ -28,10 +28,10 @@ class Seq2SeqDataset(Dataset):
 
 class Seq2LabelDataset(Dataset):
     def __init__(self, src_list, src_att_list, trg_list,
-                 min_len: int = 4, src_max_len: int = 300, trg_max_len: int = 360):
+                 min_len: int = 4, src_max_len: int = 300):
         self.tensor_list = []
         for src, src_att, trg in zip(src_list, src_att_list, trg_list):
-            if min_len <= len(src) <= src_max_len and min_len <= len(trg) <= trg_max_len:
+            if min_len <= len(src) <= src_max_len:
                 # Source tensor
                 src_tensor = torch.zeros(src_max_len, dtype=torch.long)
                 src_tensor[:len(src)] = torch.tensor(src, dtype=torch.long)

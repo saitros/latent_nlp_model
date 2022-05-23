@@ -6,7 +6,7 @@ import torch.nn as nn
 from transformers import T5ForConditionalGeneration, T5EncoderModel, T5Config, T5TokenizerFast
 from model.custom_transformer.latent_module import Latent_module
 
-class custom_T5(nn.Module):
+class custom_BERT(nn.Module):
     def __init__(self, isPreTrain, d_latent, variational_mode, decoder_full_model, device):
         super().__init__()
 
