@@ -20,13 +20,26 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
             tokenizer =  BertTokenizer.from_pretrained('bert-base-cased')
         elif language == 'kr':
             tokenizer =  BertTokenizer.from_pretrained('beomi/kcbert-base')
+        elif language == 'de':
+            tokenizer = BertTokenizer.from_pretrained('bert-base-german-cased')
+        else:
+            raise Exception(f'{args.language} language does not support')
     elif args.tokenizer == 'bart':
-        tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
+        if language == 'en':
+            tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
+        elif language =='kr':
+            tokenizer = BartTokenizer.from_pretrained('cosmoquester/bart-ko-mini')
+        elif language == 'de':
+            tokenizer = BartTokenizer.from_pretrained('Shahm/bart-german')
+        else:
+            raise Exception(f'{args.language} language does not support')
     elif args.tokenizer == 'T5':
         if language == 'en':
             tokenizer = T5Tokenizer.from_pretrained("t5-base")
         elif language == 'kr':
             tokenizer = T5Tokenizer.from_pretrained('KETI-AIR/ke-t5-base')
+        else:
+            raise Exception(f'{args.language} language does not support')
 
     for phase in ['train', 'valid', 'test']:
         encoded_dict = \
@@ -38,7 +51,11 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
         )
         processed_sequences[phase]['input_ids'] = encoded_dict['input_ids']
         processed_sequences[phase]['attention_mask'] = encoded_dict['attention_mask']
-    # BART는 model.config.decoder_start_token_id로 시작해야함 => 추후 수정 필요
+
+    # BART's decoder input id need to start with 'model.config.decoder_start_token_id'
+    if args.tokenizer == 'bart' and domain == 'trg':
+        for i in range(len(processed_sequences[phase]['input_ids'])):
+            processed_sequences[phase]['input_ids'][i][0] = 2
     
     word2id = tokenizer.get_vocab()
 

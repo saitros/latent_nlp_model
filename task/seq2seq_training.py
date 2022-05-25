@@ -16,6 +16,7 @@ from torch.cuda.amp import GradScaler, autocast
 from model.dataset import Seq2SeqDataset
 from model.custom_transformer.transformer import Transformer
 from model.plm.T5 import custom_T5
+from model.plm.bart import custom_Bart
 from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
@@ -123,10 +124,10 @@ def seq2seq_training(args):
                           variational_mode=args.variational_mode, 
                           decoder_full_model=True, device=device)
         tgt_subsqeunt_mask = None
-    # elif args.model_type == 'Bart':
-    #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
-    #                       variational_mode=args.variational_mode, 
-    #                       decoder_full_model=True, device=device)
+    elif args.model_type == 'bart':
+        model = custom_Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode,
+                            d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
+    print(args.model_type)
     # elif args.model_type == 'Bert':
     #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
     #                       variational_mode=args.variational_mode, 

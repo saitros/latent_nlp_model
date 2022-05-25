@@ -192,7 +192,7 @@ def seq2label_training(args):
                     if args.scheduler in ['constant', 'warmup']:
                         scheduler.step()
                     if args.scheduler == 'reduce_train':
-                        scheduler.step(nmt_loss)
+                        scheduler.step(loss)
 
                     # Print loss value only training
                     if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
