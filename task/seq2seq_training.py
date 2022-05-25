@@ -127,6 +127,7 @@ def seq2seq_training(args):
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode,
                             d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
+        tgt_subsqeunt_mask = None
     print(args.model_type)
     # elif args.model_type == 'Bert':
     #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
@@ -187,7 +188,7 @@ def seq2seq_training(args):
 
                 # Output pre-processing
                 trg_sequence_gold = trg_sequence[:, 1:]
-                non_pad = trg_sequence_gold != args.pad_id
+                non_pad = trg_sequence_gold != model.pad_idx
                 trg_sequence_gold = trg_sequence_gold[non_pad].contiguous().view(-1)
 
                 # Train
@@ -198,7 +199,7 @@ def seq2seq_training(args):
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
+                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=model.pad_idx)
                         total_loss = nmt_loss + dist_loss
 
                     scaler.scale(total_loss).backward()

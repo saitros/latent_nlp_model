@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 # Import Huggingface
-from transformers import BartForConditionalGeneration, BartConfig
+from transformers import BartModel, BartConfig
 #
 from ..custom_transformer.latent_module import Latent_module
 
@@ -30,14 +30,15 @@ class custom_Bart(nn.Module):
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
         self.model_config = BartConfig.from_pretrained("facebook/bart-base")
         self.model_config.use_cache = False
+        self.pad_idx = self.model_config.pad_token_id
 
         if self.isPreTrain:
-            self.model = BartForConditionalGeneration.from_pretrained('facebook/bart-base')
+            self.model = BartModel.from_pretrained('facebook/bart-base')
         else:
-            self.model = BartForConditionalGeneration(config=self.model_config)
+            self.model = BartModel(config=self.model_config)
 
         # Shared embedding setting
-        self.embeddings = self.model.model.shared
+        self.embeddings = self.model.shared
         # Encoder Setting
         self.encoder_model = self.model.get_encoder()
         # Dimension Setting
@@ -45,7 +46,7 @@ class custom_Bart(nn.Module):
         # Decoder Setting
         self.decoder_model = self.model.get_decoder()
         # Final Layer Setting
-        self.lm_head = self.model.lm_head
+        self.lm_head = nn.Linear(self.model_config.d_model, self.model.shared.num_embeddings, bias=False)
 
         # Variational model setting
         self.variational_mode = variational_mode
@@ -55,8 +56,8 @@ class custom_Bart(nn.Module):
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
-        trg_input_ids_copy = torch.tensor(trg_input_ids, requires_grad=True)
-        trg_attention_mask_copy = torch.tensor(trg_attention_mask, requires_grad=True)
+        trg_input_ids_copy = torch.tensor(trg_input_ids)
+        trg_attention_mask_copy = torch.tensor(trg_attention_mask)
         trg_input_ids = trg_input_ids[:, :-1]
         trg_attention_mask = trg_attention_mask[:, :-1]
 
@@ -76,35 +77,35 @@ class custom_Bart(nn.Module):
                                                  attention_mask=src_attention_mask)
             src_encoder_out = src_encoder_out['last_hidden_state']
 
-            # Variational
-            if self.variational_mode != 0:
-                # Target sentence latent mapping
-                with torch.no_grad():
-                    if self.emb_src_trg_weight_sharing:
-                        encoder_out_trg = self.encoder_model(inputs_embeds=trg_input_embeds_,
-                                                             attention_mask=trg_attention_mask_copy)
-                        encoder_out_trg = src_encoder_out['last_hidden_state']
-                    else:
-                        encoder_out_trg = self.encoder_model(input_ids=trg_input_ids_copy,
-                                                             attention_mask=trg_attention_mask_copy)
-                        encoder_out_trg = src_encoder_out['last_hidden_state']
+        # Variational
+        if self.variational_mode != 0:
+            # Target sentence latent mapping
+            with torch.no_grad():
+                if self.emb_src_trg_weight_sharing:
+                    encoder_out_trg = self.encoder_model(inputs_embeds=trg_input_embeds_,
+                                                            attention_mask=trg_attention_mask_copy)
+                    encoder_out_trg = src_encoder_out['last_hidden_state']
+                else:
+                    encoder_out_trg = self.encoder_model(input_ids=trg_input_ids_copy,
+                                                            attention_mask=trg_attention_mask_copy)
+                    encoder_out_trg = src_encoder_out['last_hidden_state']
 
-                encoder_out, dist_loss = self.latent_module(encoder_out, encoder_out_trg)
-            else:
-                dist_loss = torch.tensor(0, dtype=torch.float)
+            encoder_out, dist_loss = self.latent_module(encoder_out, encoder_out_trg)
+        else:
+            dist_loss = torch.tensor(0, dtype=torch.float)
 
         # Decoder
         if self.emb_src_trg_weight_sharing:
-            model_out = self.decoder_model(inputs_embeds=trg_input_embeds, 
-                                           attention_mask =trg_attention_mask,
-                                           encoder_hidden_states=src_encoder_out,
-                                           encoder_attention_mask=src_attention_mask)
+            model_out = self.decoder_model(inputs_embeds = trg_input_embeds, 
+                                           attention_mask = trg_attention_mask,
+                                           encoder_hidden_states = src_encoder_out,
+                                           encoder_attention_mask = src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
         else:
-            model_out = self.decoder_model(input_ids=trg_input_ids, 
-                                           attention_mask =trg_attention_mask,
-                                           encoder_hidden_states=src_encoder_out,
-                                           encoder_attention_mask=src_attention_mask)
+            model_out = self.decoder_model(input_ids = trg_input_ids, 
+                                           attention_mask = trg_attention_mask,
+                                           encoder_hidden_states = src_encoder_out,
+                                           encoder_attention_mask = src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
 
         if non_pad_position is not None:

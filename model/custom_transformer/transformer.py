@@ -116,10 +116,10 @@ class Transformer(nn.Module):
             # Variational
             if self.variational_mode != 0:
                 # Target sentence latent mapping
-                with torch.no_grad():
-                    for encoder in self.encoders:
-                        encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
-                                                  src_key_padding_mask=tgt_key_padding_mask_)
+                # with torch.no_grad():
+                for encoder in self.encoders:
+                    encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
+                                                src_key_padding_mask=tgt_key_padding_mask_)
 
                 encoder_out, dist_loss = self.latent_module(encoder_out, encoder_out_trg)
             else:
