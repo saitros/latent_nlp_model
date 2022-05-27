@@ -3,11 +3,6 @@ import time
 import argparse
 # Import custom modules
 from task.preprocessing import preprocessing
-# from task.translation_train import nmt_training
-# from task.translation_test import nmt_testing
-# from task.style_transfer.train import tst_training
-# from task.style_transfer.test import tst_testing
-# from task.reconstruction_train import recon_training
 from task.seq2seq_training import seq2seq_training
 from task.seq2label_training import seq2label_training
 # Utils
@@ -24,32 +19,11 @@ def main(args):
         preprocessing(args)
 
     if args.training:
-        if args.task in ['translation', 'style_transfer', 'reconstruction']:
+        if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
             seq2seq_training(args)
 
         if args.task in ['classification']:
             seq2label_training(args)
-
-    # if args.task == 'translation':
-    #     if args.training:
-    #         nmt_training(args)
-
-    #     if args.testing:
-    #         nmt_testing(args)
-
-    # if args.task == 'style_transfer':
-    #     if args.training:
-    #         tst_training(args)
-
-    #     if args.testing:
-    #         tst_testing(args)
-
-    # if args.task == 'reconstruction':
-    #     if args.training:
-    #         recon_training(args)
-
-        # if args.testing:
-        #     recon_testing(args)
 
     # Time calculate
     print(f'Done! ; {round((time.time()-total_start_time)/60, 3)}min spend')
@@ -57,7 +31,7 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    parser.add_argument('--task', default='translation', choices=['translation','style_transfer','reconstruction','classification'],
+    parser.add_argument('--task', default='translation', choices=['translation','style_transfer','reconstruction','classification','summarization'],
                         help='')
     parser.add_argument('--preprocessing', action='store_true')
     parser.add_argument('--training', action='store_true')
@@ -70,6 +44,8 @@ if __name__=='__main__':
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
+    parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
+                        help='; Default is 3.0.0')
     parser.add_argument('--model_save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     parser.add_argument('--result_path', default='./results', type=str,

@@ -258,7 +258,44 @@ def total_data_load(args):
         src_list['test'] = test_dat['description'].tolist()
         trg_list['test'] = test_dat['label'].tolist()
 
+    if args.data_name == 'GVFC':
+        args.data_path = os.path.join(args.data_path,'GVFC')
+
+        gvfc_dat = pd.read_csv(os.path.join(args.data_path, 'GVFC_headlines_and_annotations.csv'))
+        gvfc_dat = gvfc_dat.replace(99, 0)
+        src_text = gvfc_dat['news_title'].tolist()
+        trg_class = gvfc_dat['Q3 Theme1'].tolist()
+
+        train_index, valid_index, test_index = data_split_index(gvfc_dat)
+
+        src_list['train'] = [src_text[i] for i in train_index]
+        trg_list['train'] = [trg_class[i] for i in train_index]
+        src_list['valid'] = [src_text[i] for i in valid_index]
+        trg_list['valid'] = [trg_class[i] for i in valid_index]
+        src_list['test'] = [src_text[i] for i in test_index]
+        trg_list['test'] = [trg_class[i] for i in test_index]
+
     # if args.data_names == 'NSMC':
+
+    #===================================#
+    #===========Summarization===========#
+    #===================================#
+
+    if args.data_name == 'cnn_dailymail':
+
+        args.data_path = os.path.join(args.data_path, 'cnn_dailymail', args.cnn_dailymail_ver)
+
+        train = pd.read_csv(os.path.join(args.data_path, 'train.csv'))
+        valid = pd.read_csv(os.path.join(args.data_path, 'valid.csv'))
+        test = pd.read_csv(os.path.join(args.data_path, 'test.csv'))
+
+        src_list['train'] = train['article'].tolist()
+        src_list['valid'] = valid['article'].tolist()
+        src_list['test'] = test['article'].tolist()
+
+        trg_list['train'] = train['summary'].tolist()
+        trg_list['valid'] = valid['summary'].tolist()
+        trg_list['test'] = test['summary'].tolist()
 
     if args.src_trg_reverse:
 

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 # Import Huggingface
 # T5
-from transformers import T5ForConditionalGeneration, T5EncoderModel, T5Config, T5TokenizerFast
+from transformers import BertForSequenceClassification, BertTokenizer, BertConfig, BertModel
 from model.custom_transformer.latent_module import Latent_module
 
 class custom_BERT(nn.Module):
@@ -27,36 +27,19 @@ class custom_BERT(nn.Module):
         self.isPreTrain = isPreTrain
         self.device = device
 
-        self.tokenizer = T5TokenizerFast.from_pretrained('KETI-AIR/ke-t5-base')
+        self.tokenizer = BertTokenizer.from_pretrained('KETI-AIR/ke-t5-base')
         if self.isPreTrain:
-            self.model1 = T5ForConditionalGeneration.from_pretrained('KETI-AIR/ke-t5-base')
+            self.model1 = BertModel.from_pretrained('KETI-AIR/ke-t5-base')
         else:
-            model_config = T5Config('KETI-AIR/ke-t5-base')
-            self.model1 = T5ForConditionalGeneration(config=model_config)
-        # Encoder1 Setting
-        self.encoder1_embedding = self.model1.encoder.embed_tokens
-        self.encoder1_model = self.model1.encoder.block
-        self.encoder1_final_layer_norm = self.model1.encoder.final_layer_norm
-        self.encoder1_dropout = self.model1.encoder.dropout
-        # Dimension Setting
-        self.d_hidden = self.encoder1_embedding.embedding_dim
-        # Decoder Setting
-        self.decoder_model = self.model1.get_decoder()
-        # Final Layer Setting
-        self.vocab_size = self.model1.lm_head.out_features
-        self.lm_head = self.model1.lm_head
-        # Decoder full model
-        if self.isPreTrain:
-            self.model2 = T5ForConditionalGeneration.from_pretrained('KETI-AIR/ke-t5-base')
-        else:
-            self.model2 = T5ForConditionalGeneration(config=model_config)
+            model_config = BertConfig('KETI-AIR/ke-t5-base')
+            self.model1 = BertModel(config=model_config)
 
-        # Variational model setting
-        self.variational_mode = variational_mode
-        self.latent_module = Latent_module(self.d_hidden, self.d_latent, variational_mode)
+        self.embedding = self.model1.embeddings
+        self.encoder = self.model1.encoder
+        self.pooler = self.model1.pooler
 
-        # Decoder_model
-        self.decoder_full_model = decoder_full_model
+        
+
 
     def forward(self, src_input_ids, src_attention_mask,
                 trg_input_ids, trg_attention_mask,

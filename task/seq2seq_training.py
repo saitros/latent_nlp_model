@@ -56,7 +56,7 @@ def seq2seq_training(args):
         train_src_attention_mask = f.get('train_src_attention_mask')[:]
         valid_src_input_ids = f.get('valid_src_input_ids')[:]
         valid_src_attention_mask = f.get('valid_src_attention_mask')[:]
-        if args.task in ['translation', 'style_transfer']:
+        if args.task in ['translation', 'style_transfer', 'summarization']:
             train_trg_input_ids = f.get('train_trg_input_ids')[:]
             train_trg_attention_mask = f.get('train_trg_attention_mask')[:]
             valid_trg_input_ids = f.get('valid_trg_input_ids')[:]

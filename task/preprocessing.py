@@ -47,7 +47,7 @@ def preprocessing(args):
     elif args.data_name in ['korpora', 'aihub_en_kr']:
         src_language = 'en'
         trg_language = 'kr'
-    elif args.data_name in ['GYAFC', 'WNC']:
+    elif args.data_name in ['GYAFC', 'WNC', 'cnn_dailymail']:
         src_language = 'en'
         trg_language = 'en'
     elif args.data_name in ['korean_hate_speech', 'NSMC']:
@@ -63,7 +63,7 @@ def preprocessing(args):
         else:
             processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
 
-    elif args.task in ['translation', 'style_transfer']:
+    elif args.task in ['translation', 'style_transfer', 'summarization']:
         if args.tokenizer == 'spm':
             processed_src, word2id_src = spm_tokenizing(src_list, args, domain='src')
             processed_trg, word2id_trg = spm_tokenizing(trg_list, args, domain='trg')
@@ -97,7 +97,7 @@ def preprocessing(args):
         f.create_dataset('train_src_attention_mask', data=processed_src['train']['attention_mask'])
         f.create_dataset('valid_src_input_ids', data=processed_src['valid']['input_ids'])
         f.create_dataset('valid_src_attention_mask', data=processed_src['valid']['attention_mask'])
-        if args.task in ['translation', 'style_transfer']:
+        if args.task in ['translation', 'style_transfer','summarization']:
             f.create_dataset('train_trg_input_ids', data=processed_trg['train']['input_ids'])
             f.create_dataset('train_trg_attention_mask', data=processed_trg['train']['attention_mask'])
             f.create_dataset('valid_trg_input_ids', data=processed_trg['valid']['input_ids'])
@@ -109,7 +109,7 @@ def preprocessing(args):
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
         f.create_dataset('test_src_input_ids', data=processed_src['test']['input_ids'])
         f.create_dataset('test_src_attention_mask', data=processed_src['test']['attention_mask'])
-        if args.task in ['translation', 'style_transfer']:
+        if args.task in ['translation', 'style_transfer','summarization']:
             f.create_dataset('test_trg_input_ids', data=processed_trg['test']['input_ids'])
             f.create_dataset('test_trg_attention_mask', data=processed_trg['test']['attention_mask'])
         elif args.task in ['classification']:
