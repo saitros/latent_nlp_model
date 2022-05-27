@@ -1,4 +1,4 @@
-# IIPL Latent-variable machine translation project
+# IIPL Latent-variable NLP Model Project
 This project is an NLP project conducted by IIPL. This project, which intends to apply latent-variables to various fields of NLP, aims to improve the performance of various NLP tasks such as low-resource machine translation, text style transfer, and dataset shift.
 
 ### Dependencies
