@@ -128,7 +128,6 @@ def seq2seq_training(args):
         model = custom_Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode,
                             d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
-    print(args.model_type)
     # elif args.model_type == 'Bert':
     #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
     #                       variational_mode=args.variational_mode, 
@@ -144,7 +143,10 @@ def seq2seq_training(args):
     start_epoch = 0
     if args.resume:
         write_log(logger, 'Resume model...')
-        checkpoint = torch.load(os.path.join(args.model_save_path, 'checkpoint.pth.tar'))
+        save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
+        save_file_name = os.path.join(save_path, 
+                                        f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
+        checkpoint = torch.load(save_file_name)
         start_epoch = checkpoint['epoch'] + 1
         model.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])

@@ -13,7 +13,7 @@ class custom_Bart(nn.Module):
         super().__init__()
 
         """
-        Initialize WAE model
+        Customized Transformer Model
         
         Args:
             encoder_config (dictionary): encoder transformer's configuration
@@ -84,13 +84,13 @@ class custom_Bart(nn.Module):
                 if self.emb_src_trg_weight_sharing:
                     encoder_out_trg = self.encoder_model(inputs_embeds=trg_input_embeds_,
                                                             attention_mask=trg_attention_mask_copy)
-                    encoder_out_trg = src_encoder_out['last_hidden_state']
+                    encoder_out_trg = encoder_out_trg['last_hidden_state']
                 else:
                     encoder_out_trg = self.encoder_model(input_ids=trg_input_ids_copy,
                                                             attention_mask=trg_attention_mask_copy)
-                    encoder_out_trg = src_encoder_out['last_hidden_state']
+                    encoder_out_trg = encoder_out_trg['last_hidden_state']
 
-            encoder_out, dist_loss = self.latent_module(encoder_out, encoder_out_trg)
+            src_encoder_out, dist_loss = self.latent_module(src_encoder_out, encoder_out_trg)
         else:
             dist_loss = torch.tensor(0, dtype=torch.float)
 
