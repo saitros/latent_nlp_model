@@ -11,13 +11,19 @@ class Latent_module(nn.Module):
         super(Latent_module, self).__init__()
 
         self.variational_mode = variational_mode
+        
+        if self.variational_mode < 5:
+            self.context_to_mu = nn.Linear(d_model, d_latent)
+            self.context_to_logvar = nn.Linear(d_model, d_latent)
+            self.z_to_context = nn.Linear(d_latent, d_model)
 
-        self.context_to_mu = nn.Linear(d_model, d_latent)
-        self.context_to_logvar = nn.Linear(d_model, d_latent)
-        self.z_to_context = nn.Linear(d_latent, d_model)
+            self.kl_criterion = GaussianKLLoss()
 
-        self.kl_criterion = GaussianKLLoss()
-        self.mmd_criterion = MaximumMeanDiscrepancyLoss()
+        if self.variational_mode == 5:
+            self.context_to_latent = nn.Linear(d_model, d_latent)
+            self.latent_to_context = nn.Linear(d_latent, d_model)
+
+            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
 
     def forward(self, encoder_out_src, encoder_out_trg=None):
 
@@ -32,7 +38,8 @@ class Latent_module(nn.Module):
             trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
             trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
 
-            dist_loss = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
+            dist_loss = self.kl_criterion(src_mu.mean(dim=1), src_logvar.mean(dim=1), 
+                                          trg_mu.mean(dim=1), trg_logvar.mean(dim=1)) # 
 
             # Re-parameterization
             std = src_logvar.mul(0.5).exp_()
@@ -131,14 +138,14 @@ class Latent_module(nn.Module):
 
         if self.variational_mode == 5:
             # Source sentence latent mapping
-            src_latent = self.context_to_latent(encoder_out) # (token, batch, d_latent)
+            src_latent = self.context_to_latent(encoder_out_src) # (token, batch, d_latent)
             trg_latent = self.context_to_latent(encoder_out_trg) # (token, batch, d_latent)
 
-            dist_loss = self.mmd_criterion(src_latent, trg_latent, 2) # z_var is 2 now
+            dist_loss = self.mmd_criterion(src_latent.mean(dim=1), trg_latent.mean(dim=1), 100) # z_var is 2 now
 
             #
             src_latent = self.latent_to_context(src_latent)
 
-            encoder_out = torch.add(encoder_out, src_latent)
+            encoder_out_total = torch.add(encoder_out_src, src_latent)
 
-        return encoder_out_total, dist_loss
+        return encoder_out_total, dist_loss * 100

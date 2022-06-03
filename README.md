@@ -17,8 +17,10 @@ This code is written in Python. Dependencies include
 #### Text Style Transfer
 * Grammarly's Yahho Answer Formality Corpus **Informal -> Formal** (--task=style_transfer --data_name=GYAFC)
 * Wiki Neutrality Corpus **Biased -> Neutral** (--task=style_transfer --data_name=WNC)
+#### Summarization
+* CNN & Daily Mail **News Summarization** (--task=summarization --data_name=cnn_dailymail)
 #### Classification
-* IMDB (Coming soon...)
+* IMDB **Sentiment Analysis** (--task=classification --data_name=IMDB)
 * NSMC (Coming soon...)
 * Korean Hate Speech (Coming soon...)
 

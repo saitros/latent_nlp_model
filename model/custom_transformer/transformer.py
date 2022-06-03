@@ -80,7 +80,7 @@ class Transformer(nn.Module):
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
-        trg_input_ids_copy =  torch.clone(trg_input_ids)
+        trg_input_ids_copy = trg_input_ids.clone().detach().required_grad_(True)
         trg_input_ids = trg_input_ids[:, :-1]
 
         # Key padding mask setting
@@ -138,6 +138,8 @@ class Transformer(nn.Module):
         decoder_out = self.trg_output_linear2(decoder_out)
         # decoder_out = decoder_out * self.x_logit_scale
         return decoder_out, dist_loss
+
+    # def generate()
 
     @staticmethod
     def generate_square_subsequent_mask(sz, device):
