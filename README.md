@@ -33,7 +33,7 @@ python main.py --preprocessing
 ```
 
 Available options are 
-* tokenizer (--tokenizer)
+* tokenizer (--tokenizer; If you choose Pre-trained Langauge Model's tokenizer, Pre-trained version will load.)
 * SentencePiece model type (--sentencepiece_model; If tokenizer is spm)
 * source text vocabulary size (--src_vocab_size)
 * target text vocabulary size (--trg_vocab_size)
@@ -43,8 +43,8 @@ Available options are
 * end token id (--eos_id)
 
 ```
-python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram 
---src_vocab_size=8000 --trg_vocab_size=8000 
+python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram \
+--src_vocab_size=8000 --trg_vocab_size=8000 \
 --pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
 ```
 
@@ -72,7 +72,9 @@ Available options are
 * weight sharing between encoder embedding and decoder embedding (--emb_src_trg_weight_sharing)
 
 ```
-python main.py --training --d_model=768 --d_embedding=256 --n_head=16 --dim_feedforward=2048 --dropout=0.3 --embedding_dropout=0.1 --num_encoder_layer=8 --num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
+python main.py --training --d_model=768 --d_embedding=256 --n_head=16 \
+--dim_feedforward=2048 --dropout=0.3 --embedding_dropout=0.1 --num_encoder_layer=8 \
+--num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
 ```
 
 ### Bart

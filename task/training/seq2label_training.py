@@ -16,8 +16,7 @@ from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
 from model.dataset import Seq2LabelDataset
 from model.custom_transformer.transformer import Transformer
-from model.plm.T5 import custom_T5
-from model.loss import label_smoothing_loss
+from model.custom_plm.T5 import custom_T5
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
 

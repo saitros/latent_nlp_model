@@ -6,10 +6,11 @@ from torch.autograd import Variable
 # Import Huggingface
 from transformers import BartModel, BartConfig
 #
-from ..custom_transformer.latent_module import Latent_module
+from ..latent_module.latent import Latent_module 
 
 class custom_Bart(nn.Module):
-    def __init__(self, isPreTrain, variational_mode, d_latent, emb_src_trg_weight_sharing=True):
+    def __init__(self, isPreTrain, PreTrainMode,
+                 variational_mode, d_latent, emb_src_trg_weight_sharing: bool =True):
         super().__init__()
 
         """
@@ -27,25 +28,24 @@ class custom_Bart(nn.Module):
         """
         self.d_latent = d_latent
         self.isPreTrain = isPreTrain
+        self.PreTrainMode = PreTrainMode
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
-        self.model_config = BartConfig.from_pretrained("facebook/bart-large-cnn")
+        self.model_config = BartConfig.from_pretrained(f'facebook/bart-{self.PreTrainMode}')
         self.model_config.use_cache = False
         self.pad_idx = self.model_config.pad_token_id
 
         if self.isPreTrain:
-            self.model = BartModel.from_pretrained('facebook/bart-large-cnn')
+            self.model = BartModel.from_pretrained(f'facebook/bart-{self.PreTrainMode}')
         else:
             self.model = BartModel(config=self.model_config)
 
+        self.encoder_model = self.model.get_encoder()
+        self.decoder_model = self.model.get_decoder()
         # Shared embedding setting
         self.embeddings = self.model.shared
-        # Encoder Setting
-        self.encoder_model = self.model.get_encoder()
         # Dimension Setting
         self.d_hidden = self.encoder_model.embed_tokens.embedding_dim
-        # Decoder Setting
-        self.decoder_model = self.model.get_decoder()
-        # Final Layer Setting
+        # 
         self.lm_head = nn.Linear(self.model_config.d_model, self.model.shared.num_embeddings, bias=False)
 
         # Variational model setting
@@ -56,7 +56,7 @@ class custom_Bart(nn.Module):
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
-        trg_input_ids_copy = trg_input_ids.clone().detach()#.required_grad_(True)
+        trg_input_ids_copy = trg_input_ids.clone().detach()
         trg_attention_mask_copy = trg_attention_mask.clone().detach()
         trg_input_ids = trg_input_ids[:, :-1]
         trg_attention_mask = trg_attention_mask[:, :-1]
@@ -83,11 +83,11 @@ class custom_Bart(nn.Module):
             with torch.no_grad():
                 if self.emb_src_trg_weight_sharing:
                     encoder_out_trg = self.encoder_model(inputs_embeds=trg_input_embeds_,
-                                                            attention_mask=trg_attention_mask_copy)
+                                                         attention_mask=trg_attention_mask_copy)
                     encoder_out_trg = encoder_out_trg['last_hidden_state']
                 else:
                     encoder_out_trg = self.encoder_model(input_ids=trg_input_ids_copy,
-                                                            attention_mask=trg_attention_mask_copy)
+                                                         attention_mask=trg_attention_mask_copy)
                     encoder_out_trg = encoder_out_trg['last_hidden_state']
 
             src_encoder_out, dist_loss = self.latent_module(src_encoder_out, encoder_out_trg)

@@ -15,11 +15,24 @@ from torch.cuda.amp import GradScaler, autocast
 # Import custom modules
 from model.dataset import Seq2SeqDataset
 from model.custom_transformer.transformer import Transformer
-from model.plm.T5 import custom_T5
-from model.plm.bart import custom_Bart
-from model.loss import label_smoothing_loss
+from model.custom_plm.T5 import custom_T5
+from model.custom_plm.bart import custom_Bart
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log
+
+def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
+    ''' Calculate cross entropy loss, apply label smoothing if needed. '''
+    gold = gold.contiguous().view(-1)
+    n_class = pred.size(1)
+
+    one_hot = torch.zeros_like(pred).scatter(1, gold.view(-1, 1), 1)
+    one_hot = one_hot * (1 - smoothing_eps) + (1 - one_hot) * smoothing_eps / (n_class - 1)
+    log_prb = F.log_softmax(pred, dim=1)
+
+    non_pad_mask = gold.ne(trg_pad_idx)
+    loss = -(one_hot * log_prb).sum(dim=1)
+    loss = loss.masked_select(non_pad_mask).mean()
+    return loss
 
 def seq2seq_training(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -71,9 +84,11 @@ def seq2seq_training(args):
         data_ = pickle.load(f)
         src_word2id = data_['src_word2id']
         src_vocab_num = len(src_word2id)
+        src_language = data_['src_language']
         if args.task in ['translation', 'style_transfer']:
             trg_word2id = data_['trg_word2id']
             trg_vocab_num = len(trg_word2id)
+            trg_language = data_['trg_language']
         elif args.task in ['reconstruction']:
             trg_vocab_num = src_vocab_num
         del data_
@@ -125,7 +140,8 @@ def seq2seq_training(args):
                           decoder_full_model=True, device=device)
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
-        model = custom_Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode,
+        model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
+                            variational_mode=args.variational_mode,
                             d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
     # elif args.model_type == 'Bert':

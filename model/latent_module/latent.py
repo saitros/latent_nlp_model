@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 # Import custom modules
-from ..loss import GaussianKLLoss, MaximumMeanDiscrepancyLoss
+from .loss import GaussianKLLoss, MaximumMeanDiscrepancyLoss
 
 class Latent_module(nn.Module):
     def __init__(self, d_model, d_latent, variational_mode):
@@ -23,6 +23,31 @@ class Latent_module(nn.Module):
             self.context_to_latent = nn.Linear(d_model, d_latent)
             self.latent_to_context = nn.Linear(d_latent, d_model)
 
+            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
+
+        if self.variational_mode >= 6:
+            self.latent_encoder = nn.Sequential(
+                nn.Conv1d(in_channels=1024, out_channels=512, kernel_size=5, stride=3),
+                nn.GELU(),
+                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=3),
+                nn.GELU(),
+                nn.Conv1d(in_channels=256, out_channels=128, kernel_size=10, stride=1),
+                nn.GELU(),
+            )
+
+            self.context_to_mu = nn.Linear(128, 128)
+            self.context_to_logvar = nn.Linear(128, 128)
+
+            self.latent_decoder = nn.Sequential(
+                nn.ConvTranspose1d(in_channels=128, out_channels=256, kernel_size=10, stride=1),
+                nn.GELU(),
+                nn.ConvTranspose1d(in_channels=256, out_channels=512, kernel_size=5, stride=3),
+                nn.GELU(),
+                nn.ConvTranspose1d(in_channels=512, out_channels=1024, kernel_size=7, stride=3),
+                nn.GELU(),
+            )
+            
+            self.kl_criterion = GaussianKLLoss()
             self.mmd_criterion = MaximumMeanDiscrepancyLoss()
 
     def forward(self, encoder_out_src, encoder_out_trg=None):
@@ -148,4 +173,55 @@ class Latent_module(nn.Module):
 
             encoder_out_total = torch.add(encoder_out_src, src_latent)
 
-        return encoder_out_total, dist_loss * 100
+    #===================================#
+    #==============CNN+VAE==============#
+    #===================================#
+
+        if self.variational_mode == 6:
+            # Source sentence latent mapping
+            encoder_out_src = encoder_out_src.transpose(1,2)
+            encoder_out_trg = encoder_out_trg.transpose(1,2)
+
+            src_latent = self.latent_encoder(encoder_out_src)
+            trg_latent = self.latent_encoder(encoder_out_trg)
+
+            src_mu = self.context_to_mu(src_latent.squeeze(2)) # (token, batch, d_latent)
+            src_logvar = self.context_to_logvar(src_latent.squeeze(2)) # (token, batch, d_latent)
+
+            trg_mu = self.context_to_mu(trg_latent.squeeze(2)) # (token, batch, d_latent)
+            trg_logvar = self.context_to_logvar(trg_latent.squeeze(2)) # (token, batch, d_latent)
+            
+            dist_loss = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
+
+            #
+            src_latent = self.latent_decoder(src_latent)
+
+            src_latent = src_latent.transpose(1,2)
+            encoder_out_src = encoder_out_src.transpose(1,2)
+
+            encoder_out_total = torch.add(encoder_out_src, src_latent)
+
+
+    #===================================#
+    #==============CNN+WAE==============#
+    #===================================#
+
+        if self.variational_mode == 7:
+            # Source sentence latent mapping
+            encoder_out_src = encoder_out_src.transpose(1,2)
+            encoder_out_trg = encoder_out_trg.transpose(1,2)
+
+            src_latent = self.latent_encoder(encoder_out_src)
+            trg_latent = self.latent_encoder(encoder_out_trg)
+
+            dist_loss = self.mmd_criterion(src_latent.squeeze(2), trg_latent.squeeze(2), 100) # z_var is 2 now
+
+            #
+            src_latent = self.latent_decoder(src_latent)
+
+            src_latent = src_latent.transpose(1,2)
+            encoder_out_src = encoder_out_src.transpose(1,2)
+
+            encoder_out_total = torch.add(encoder_out_src, src_latent)
+
+        return encoder_out_total, dist_loss

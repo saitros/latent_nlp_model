@@ -7,7 +7,7 @@ from torch.nn.modules.activation import MultiheadAttention
 
 # Import custom modules
 from .embedding import TransformerEmbedding
-from .latent_module import Latent_module
+from ..latent_module.latent import Latent_module 
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_num, trg_vocab_num, pad_idx=0, bos_idx=1, eos_idx=2, 

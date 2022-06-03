@@ -1,7 +1,7 @@
 __pycache__/
 .ipynb_checkpoints/
 *.tar
-preprocessing/
+preprocessed/
 *.ipynb
 *.txt
 *.pkl

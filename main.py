@@ -2,9 +2,9 @@
 import time
 import argparse
 # Import custom modules
-from task.preprocessing import preprocessing
-from task.seq2seq_training import seq2seq_training
-from task.seq2label_training import seq2label_training
+from task.preprocessing.data_preprocessing import data_preprocessing
+from task.training.seq2label_training import seq2label_training
+from task.training.seq2seq_training import seq2seq_training
 # Utils
 from utils import str2bool, path_check
 
@@ -16,7 +16,7 @@ def main(args):
     path_check(args)
 
     if args.preprocessing:
-        preprocessing(args)
+        data_preprocessing(args)
 
     if args.training:
         if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
@@ -31,14 +31,15 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    parser.add_argument('--task', default='translation', choices=['translation','style_transfer','reconstruction','classification','summarization'],
+    task_list = ['translation','style_transfer','reconstruction','classification','summarization']
+    parser.add_argument('--task', default='translation', choices=task_list,
                         help='')
     parser.add_argument('--preprocessing', action='store_true')
     parser.add_argument('--training', action='store_true')
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
     # Path setting
-    parser.add_argument('--preprocess_path', default='./preprocessing', type=str,
+    parser.add_argument('--preprocess_path', default='./preprocessed', type=str,
                         help='Pre-processed data save path')
     parser.add_argument('--data_path', default='/mnt/md0/dataset', type=str,
                         help='Original data path')

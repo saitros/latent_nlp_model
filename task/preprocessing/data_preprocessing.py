@@ -5,13 +5,13 @@ import pickle
 import logging
 import numpy as np
 # Import custom modules
-from tokenizer.spm_tokenize import spm_tokenizing
-from tokenizer.plm_tokenize import plm_tokenizing
-from tokenizer.spacy_tokenize import spacy_tokenizing
-from task.data_load import total_data_load
+from task.preprocessing.tokenizer.spm_tokenize import spm_tokenizing
+from task.preprocessing.tokenizer.plm_tokenize import plm_tokenizing
+from task.preprocessing.tokenizer.spacy_tokenize import spacy_tokenizing
+from task.preprocessing.data_load import total_data_load
 from utils import TqdmLoggingHandler, write_log
 
-def preprocessing(args):
+def data_preprocessing(args):
 
     start_time = time.time()
 
@@ -117,9 +117,14 @@ def preprocessing(args):
 
     # Word2id pickle file save
     if args.task in ['classification', 'reconstruction']:
-        word2id_dict = {'src_word2id' : word2id_src}
+        word2id_dict = {
+            'src_language' : src_language, 
+            'src_word2id' : word2id_src
+        }
     else:
         word2id_dict = {
+            'src_language': src_language,
+            'trg_language': trg_language,
             'src_word2id': word2id_src,
             'trg_word2id': word2id_trg
         }
