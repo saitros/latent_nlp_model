@@ -43,7 +43,9 @@ Available options are
 * end token id (--eos_id)
 
 ```
-python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram \\ --src_vocab_size=8000 --trg_vocab_size=8000 --pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
+python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram 
+--src_vocab_size=8000 --trg_vocab_size=8000 
+--pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
 ```
 
 ## Training
