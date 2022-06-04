@@ -177,7 +177,7 @@ def nmt_testing(args):
 
             # Latent variable concat (Need re-checking)
             # Source sentence latent mapping
-            if args.variational:
+            if args.variational_mode == 1:
                 z = model.context_to_mu(encoder_out)
                 src_context = model.z_to_context(z)
                 encoder_out = torch.add(encoder_out, src_context)
