@@ -2,12 +2,9 @@
 import time
 import argparse
 # Import custom modules
-from task.translation.preprocessing import preprocessing as nmt_preprocessing
-from task.translation.train import training as nmt_training
-from task.translation.test import testing as nmt_testing
-from task.style_transfer.preprocessing import preprocessing
-from task.style_transfer.train import training
-from task.style_transfer.test import testing
+from task.preprocessing.data_preprocessing import data_preprocessing
+from task.training.seq2label_training import seq2label_training
+from task.training.seq2seq_training import seq2seq_training
 # Utils
 from utils import str2bool, path_check, set_random_seed
 
@@ -22,25 +19,15 @@ def main(args):
     # Path setting
     path_check(args)
 
-    if args.task == 'translation':
-        if args.preprocessing:
-            nmt_preprocessing(args)
+    if args.preprocessing:
+        data_preprocessing(args)
 
-        if args.training:
-            nmt_training(args)
+    if args.training:
+        if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
+            seq2seq_training(args)
 
-        if args.testing:
-            nmt_testing(args)
-
-    if args.task == 'style_transfer':
-        if args.preprocessing:
-            preprocessing(args)
-
-        if args.training:
-            training(args)
-
-        if args.testing:
-            testing(args)
+        if args.task in ['classification']:
+            seq2label_training(args)
 
     # Time calculate
     print(f'Done! ; {round((time.time()-total_start_time)/60, 3)}min spend')
@@ -48,20 +35,23 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    parser.add_argument('--task', default='translation', choices=['translation','style_transfer'],
+    task_list = ['translation','style_transfer','reconstruction','classification','summarization']
+    parser.add_argument('--task', default='translation', choices=task_list,
                         help='')
     parser.add_argument('--preprocessing', action='store_true')
     parser.add_argument('--training', action='store_true')
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
     # Path setting
-    parser.add_argument('--preprocess_path', default='./preprocessing', type=str,
+    parser.add_argument('--preprocess_path', default='./preprocessed', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='./WMT', type=str,
+    parser.add_argument('--data_path', default='/mnt/md0/dataset', type=str,
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
-    parser.add_argument('--model_save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
+    parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
+                        help='; Default is 3.0.0')
+    parser.add_argument('--model_save_path', default='/mnt/md0/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     parser.add_argument('--result_path', default='./results', type=str,
                         help='Results file path')               
@@ -71,6 +61,10 @@ if __name__=='__main__':
             ], help='Tokenizer select; Default is spm')
     parser.add_argument('--sentencepiece_model', default='unigram', choices=['unigram', 'bpe', 'word', 'char'],
                         help="Google's SentencePiece model type; Default is unigram")
+    parser.add_argument('--src_character_coverage', default=1.0, type=float,
+                        help='Source language chracter coverage ratio; Default is 1.0')
+    parser.add_argument('--trg_character_coverage', default=1.0, type=float,
+                        help='Target language chracter coverage ratio; Default is 1.0')
     parser.add_argument('--src_vocab_size', default=3600, type=int,
                         help='Source text vocabulary size; Default is 3600')
     parser.add_argument('--trg_vocab_size', default=3600, type=int,
@@ -83,12 +77,14 @@ if __name__=='__main__':
                         help='Padding token index; Default is 1')
     parser.add_argument('--eos_id', default=2, type=int,
                         help='Padding token index; Default is 2')
+    parser.add_argument('--src_trg_reverse', action='store_true')
+    parser.add_argument('--with_eda', action='store_true')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_name', default='translator_basic', type=str,
                         help='Model name; Default is translator_basic')
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
-        'custom_transformer', 'bart', 'T5'
+        'custom_transformer', 'bart', 'T5', 'bert'
             ], help='Model type selection; Default is custom_transformer')
     parser.add_argument('--isPreTrain', default=False, type=str2bool,
                         help='Using pre-trained model; Default is False')
@@ -111,14 +107,14 @@ if __name__=='__main__':
                         help="Number of decoder layers; Default is 8")
     parser.add_argument('--trg_emb_prj_weight_sharing', default=False, type=str2bool,
                         help='Weight sharing between decoder embedding and decoder linear; Default is False')
-    parser.add_argument('--emb_src_trg_weight_sharing', default=True, type=str2bool,
-                        help='Weight sharing between encoder embedding and decoder embedding; Default is True')
+    parser.add_argument('--emb_src_trg_weight_sharing', default=False, type=str2bool,
+                        help='Weight sharing between encoder embedding and decoder embedding; Default is False')
     parser.add_argument('--parallel', default=False, type=str2bool,
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
     parser.add_argument('--num_common_layer', default=6, type=int, 
                         help="Number of common layers; Default is 6")
     # 2) Variational model
-    parser.add_argument('--variational', default=False, type=str2bool,
+    parser.add_argument('--variational_mode', default=0, type=int,
                         help='Variational transformer mode; Default is False')
     parser.add_argument('--d_latent', default=128, type=int, 
                         help='Latent variable dimension; Default is 128')

@@ -1,4 +1,4 @@
-# IIPL Latent-variable machine translation project
+# IIPL Latent-variable NLP Model Project
 This project is an NLP project conducted by IIPL. This project, which intends to apply latent-variables to various fields of NLP, aims to improve the performance of various NLP tasks such as low-resource machine translation, text style transfer, and dataset shift.
 
 ### Dependencies
@@ -10,8 +10,19 @@ This code is written in Python. Dependencies include
 * Transformers (Huggingface) == 4.8.1
 
 ### Usable Data
-* WMT 2014 translation task DE -> EN (--data_name=WMT2014_de_en)
-* WMT 2016 multimodal DE -> EN (--data_name=WMT2016_Multimodal)
+#### Neural Machine Translation
+* WMT 2014 translation task **DE -> EN** (--task=translation --data_name=WMT2014_de_en)
+* WMT 2016 multimodal **DE -> EN** (--task=translation --data_name=WMT2016_Multimodal)
+* Korpora **EN -> KR** (--task=translation --data_name=korpora)
+#### Text Style Transfer
+* Grammarly's Yahho Answer Formality Corpus **Informal -> Formal** (--task=style_transfer --data_name=GYAFC)
+* Wiki Neutrality Corpus **Biased -> Neutral** (--task=style_transfer --data_name=WNC)
+#### Summarization
+* CNN & Daily Mail **News Summarization** (--task=summarization --data_name=cnn_dailymail)
+#### Classification
+* IMDB **Sentiment Analysis** (--task=classification --data_name=IMDB)
+* NSMC (Coming soon...)
+* Korean Hate Speech (Coming soon...)
 
 ## Preprocessing
 
@@ -22,7 +33,7 @@ python main.py --preprocessing
 ```
 
 Available options are 
-* tokenizer (--tokenizer)
+* tokenizer (--tokenizer; If you choose Pre-trained Langauge Model's tokenizer, Pre-trained version will load.)
 * SentencePiece model type (--sentencepiece_model; If tokenizer is spm)
 * source text vocabulary size (--src_vocab_size)
 * target text vocabulary size (--trg_vocab_size)
@@ -32,7 +43,9 @@ Available options are
 * end token id (--eos_id)
 
 ```
-python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram --src_vocab_size=8000 --trg_vocab_size=8000 --pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
+python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram \
+--src_vocab_size=8000 --trg_vocab_size=8000 \
+--pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
 ```
 
 ## Training
@@ -59,7 +72,9 @@ Available options are
 * weight sharing between encoder embedding and decoder embedding (--emb_src_trg_weight_sharing)
 
 ```
-python main.py --training --d_model=768 --d_embedding=256 --n_head=16 --dim_feedforward=2048 --dropout=0.3 --embedding_dropout=0.1 --num_encoder_layer=8 --num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
+python main.py --training --d_model=768 --d_embedding=256 --n_head=16 \
+--dim_feedforward=2048 --dropout=0.3 --embedding_dropout=0.1 --num_encoder_layer=8 \
+--num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
 ```
 
 ### Bart
@@ -70,6 +85,7 @@ Implementation of the Bart model in "[BART: Denoising Sequence-to-Sequence Pre-t
 * **Kyohoon Jin** - *Project Manager* - [[Link]](https://github.com/fhzh123)
 * **Jaeyoung Park** - *Sub Manager* - [[Link]](https://github.com/jury124)
 * **Juhwan Choi** - *Enginner* - [[Link]](https://github.com/c-juhwan)
+* **Junho Lee** - *Enginner* - [[Link]](https://github.com/saitros)
 
 See also the list of [contributors](https://github.com/orgs/IIPL-CAU/people) who participated in this project.
 

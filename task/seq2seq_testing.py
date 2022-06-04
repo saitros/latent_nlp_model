@@ -9,19 +9,20 @@ import sentencepiece as spm
 from tqdm import tqdm
 from collections import defaultdict
 from nltk.translate.bleu_score import corpus_bleu
-
 # Import PyTorch
 import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+# Import Huggingface
+from transformers import BartTokenizerFast
 # Import custom modules
-from model.dataset import CustomDataset
+from model.dataset import Seq2SeqDataset
 from model.custom_transformer.transformer import Transformer
 from model.plm.bart import Bart
 from utils import TqdmLoggingHandler, write_log
 
-def testing(args):
+def nmt_testing(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     #===================================#
@@ -45,16 +46,17 @@ def testing(args):
     write_log(logger, "Load data...")
     gc.disable()
 
-    # save_path = os.path.join(args.preprocess_path, args.task, args.tokenizer)
-    save_path = os.path.join(args.preprocess_path, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.data_name, args.tokenizer)
     if args.tokenizer == 'spm':
-        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
+        save_name = f'processed_{args.task}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
+        save_name = f'processed_{args.task}_{args.tokenizer}.hdf5'
     
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'r') as f:
         test_src_input_ids = f.get('test_src_input_ids')[:]
+        test_src_attention_mask = f.get('test_src_attention_mask')[:]
         test_trg_input_ids = f.get('test_trg_input_ids')[:]
+        test_trg_attention_mask = f.get('test_trg_attention_mask')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
@@ -69,8 +71,9 @@ def testing(args):
     write_log(logger, "Finished loading data!")
 
     # 2) Dataloader setting
-    test_dataset = CustomDataset(src_list=test_src_input_ids, trg_list=test_trg_input_ids,
-                                 min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len)
+    test_dataset = Seq2SeqDataset(src_list=test_src_input_ids, src_att_list=test_src_attention_mask,
+                                trg_list=test_trg_input_ids, trg_att_list=test_trg_attention_mask,
+                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len)
     test_dataloader = DataLoader(test_dataset, drop_last=False, batch_size=args.test_batch_size, shuffle=False,
                                  pin_memory=True, num_workers=args.num_workers)
     write_log(logger, f"Total number of trainingsets  iterations - {len(test_dataset)}, {len(test_dataloader)}")
@@ -92,22 +95,34 @@ def testing(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            variational=args.variational, parallel=args.parallel)
-    else:
-        model = Bart(model_type=args.model_type, isPreTrain=args.isPreTrain,
-                     variational=args.variational, d_latent=args.d_latent)
+                            variational_mode=args.variational_mode, parallel=args.parallel)
+        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
+    elif args.model_type == 'T5':
+        model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
+                          variational_mode=args.variational_mode, 
+                          decoder_full_model=True, device=device)
+        tgt_subsqeunt_mask = None
+    elif args.model_type == 'bart':
+        model = custom_Bart(isPreTrain=args.isPreTrain, variational_mode=args.variational_mode,
+                            d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
+        tgt_subsqeunt_mask = None
 
     # loda model
     model = model.to(device)
-    save_file_name = os.path.join(args.save_path, 
-                                    f'checkpoint_{args.data_name}_p_{args.parallel}_v_{args.variational}.pth.tar')
+    save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
+    save_file_name = os.path.join(save_path, 
+                                    f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
     model.load_state_dict(torch.load(save_file_name)['model'])
     model = model.eval()
 
     # load sentencepiece model
-    write_log(logger, "Load SentencePiece model")
-    spm_trg = spm.SentencePieceProcessor()
-    spm_trg.Load(f'{args.preprocess_path}/{args.task}/m_trg_{args.trg_vocab_size}.model')
+    if args.tokenizer == 'spm':
+        write_log(logger, "Load SentencePiece model")
+        spm_trg = spm.SentencePieceProcessor()
+        preprocess_save_path = os.path.join(args.preprocess_path, args.task, args.data_name, args.tokenizer)
+        spm_trg.Load(f'{preprocess_save_path}/m_trg_{args.sentencepiece_model}_{args.trg_vocab_size}.model')
+    elif args.tokenizer == 'bart':
+        tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-base')
 
     # Pre-setting
     predicted_list = list()
@@ -268,9 +283,9 @@ def testing(args):
                 save_result_path = os.path.join(args.result_path, detail_path)
                 if not os.path.exists(save_result_path):
                     os.mkdir(save_result_path)
-                with open(os.path.join(save_result_path, 'prediction_text.txt'), 'a') as f:
+                with open(os.path.join(save_result_path, f'v_{args.variational_mode}_prediction_text.txt'), 'a') as f:
                     f.write(pred + '\n')
-                with open(os.path.join(save_result_path, 'label_text.txt'), 'a') as f:
+                with open(os.path.join(save_result_path, f'v_{args.variational_mode}_label_text.txt'), 'a') as f:
                     f.write(real + '\n')
                 # Append for BLEU calculate
                 reference_token.append([real_token])

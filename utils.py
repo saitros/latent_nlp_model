@@ -30,10 +30,11 @@ def path_check(args):
     if not os.path.exists(os.path.join(args.preprocess_path, args.task)):
         os.mkdir(os.path.join(args.preprocess_path, args.task))
 
+    if not os.path.exists(os.path.join(args.preprocess_path, args.data_name)):
+        os.mkdir(os.path.join(args.preprocess_path, args.data_name))
+    
     if not os.path.exists(args.tensorboard_path):
         os.mkdir(args.tensorboard_path)
-    if not os.path.exists(os.path.join(args.preprocess_path, args.task, args.data_name)):
-        os.mkdir(os.path.join(args.preprocess_path, args.task, args.data_name))
 
     # Model Checkpoint Path Checking
     if not os.path.exists(args.model_save_path):

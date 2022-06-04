@@ -1,6 +1,7 @@
 # Import modules
 import os
 import gc
+import psutil
 import h5py
 import pickle
 import logging
@@ -12,15 +13,16 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
+from torch.utils.tensorboard import SummaryWriter
 # Import custom modules
 from model.dataset import CustomDataset
 from model.custom_transformer.transformer import Transformer
-from model.plm.bart import Bart
+from model.plm.T5 import custom_T5
 from model.loss import label_smoothing_loss
 from optimizer.utils import shceduler_select, optimizer_select
-from utils import TqdmLoggingHandler, write_log
+from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 
-def training(args):
+def recon_training(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     #===================================#
@@ -33,6 +35,10 @@ def training(args):
     handler.setFormatter(logging.Formatter(" %(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
     logger.addHandler(handler)
     logger.propagate = False
+
+    if args.use_tensorboard:
+        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
+        writer.add_text('args', str(args))
 
     write_log(logger, 'Start training!')
 
@@ -52,16 +58,14 @@ def training(args):
 
     with h5py.File(os.path.join(save_path, save_name), 'r') as f:
         train_src_input_ids = f.get('train_src_input_ids')[:]
-        train_trg_input_ids = f.get('train_trg_input_ids')[:]
+        train_src_attention_mask = f.get('train_src_attention_mask')[:]
         valid_src_input_ids = f.get('valid_src_input_ids')[:]
-        valid_trg_input_ids = f.get('valid_trg_input_ids')[:]
+        valid_src_attention_mask = f.get('valid_src_attention_mask')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
         src_word2id = data_['src_word2id']
-        trg_word2id = data_['trg_word2id']
         src_vocab_num = len(src_word2id)
-        trg_vocab_num = len(trg_word2id)
         del data_
 
     gc.enable()
@@ -69,9 +73,9 @@ def training(args):
 
     # 2) Dataloader setting
     dataset_dict = {
-        'train': CustomDataset(src_list=train_src_input_ids, trg_list=train_trg_input_ids, 
+        'train': CustomDataset(src_list=train_src_input_ids, trg_list=train_src_input_ids, 
                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-        'valid': CustomDataset(src_list=valid_src_input_ids, trg_list=valid_trg_input_ids,
+        'valid': CustomDataset(src_list=valid_src_input_ids, trg_list=valid_src_input_ids,
                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
     }
     dataloader_dict = {
@@ -91,7 +95,7 @@ def training(args):
     # 1) Model initiating
     write_log(logger, 'Instantiating model...')
     if args.model_type == 'custom_transformer':
-        model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
+        model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=src_vocab_num,
                             pad_idx=args.pad_id, bos_idx=args.bos_id, eos_idx=args.eos_id,
                             d_model=args.d_model, d_embedding=args.d_embedding, n_head=args.n_head,
                             dim_feedforward=args.dim_feedforward,
@@ -101,12 +105,13 @@ def training(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            variational=args.variational, parallel=args.parallel)
+                            variational_mode=args.variational_mode, parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
-    else:
-        model = Bart(isPreTrain=args.isPreTrain, variational=args.variational, d_latent=args.d_latent,
-                     emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
-        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
+    elif args.model_type == 'T5':
+        model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
+                          variational_mode=args.variational_mode, 
+                          decoder_full_model=True, device=device)
+        tgt_subsqeunt_mask = None
     model = model.to(device)
     
     # 2) Optimizer & Learning rate scheduler setting
@@ -118,7 +123,7 @@ def training(args):
     start_epoch = 0
     if args.resume:
         write_log(logger, 'Resume model...')
-        checkpoint = torch.load(os.path.join(args.save_path, 'checkpoint.pth.tar'))
+        checkpoint = torch.load(os.path.join(args.model_save_path, 'checkpoint.pth.tar'))
         start_epoch = checkpoint['epoch'] + 1
         model.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -147,7 +152,8 @@ def training(args):
             for i, (src_sequence, trg_sequence) in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
                 # Optimizer setting
-                optimizer.zero_grad(set_to_none=True)
+                # optimizer.zero_grad(set_to_none=True)
+                optimizer.zero_grad()
 
                 # Input, output setting
                 src_sequence = src_sequence.to(device, non_blocking=True)
@@ -162,7 +168,8 @@ def training(args):
                 if phase == 'train':
 
                     with autocast():
-                        predicted, kl = model(src_sequence, trg_sequence, 
+                        predicted, kl = model(src_sequence, src_attention_mask,
+                                              trg_sequence, trg_attention_mask,
                                               non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
                         nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=args.pad_id)
@@ -191,6 +198,15 @@ def training(args):
                         freq = 0
                     freq += 1
 
+                    if args.use_tensorboard:
+                        acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                        
+                        writer.add_scalar('TRAIN/Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('GPU_Usage', torch.cuda.memory_allocated(device=device), (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
+
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
@@ -200,18 +216,23 @@ def training(args):
                         total_loss = nmt_loss + kl
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
-                    if args.scheduler == 'reduce_valid':
-                        scheduler.step(val_loss)
-                    if args.scheduler == 'lambda':
-                        scheduler.step()
 
             if phase == 'valid':
+
+                if args.scheduler == 'reduce_valid':
+                    scheduler.step(val_loss)
+                if args.scheduler == 'lambda':
+                    scheduler.step()
+
                 val_loss /= len(dataloader_dict[phase])
                 val_acc /= len(dataloader_dict[phase])
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
-                save_file_name = os.path.join(args.save_path, 
-                                              f'checkpoint_{args.data_name}_p_{args.parallel}_v_{args.variational}.pth.tar')
+                save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
+                if not os.path.exists(save_path):
+                    os.mkdir(save_path)
+                save_file_name = os.path.join(save_path, 
+                                              f'recon_checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
                 if val_acc > best_val_acc:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({
@@ -226,6 +247,10 @@ def training(args):
                 else:
                     else_log = f'Still {best_epoch} epoch accuracy({round(best_val_acc.item()*100, 2)})% is better...'
                     write_log(logger, else_log)
+
+                if args.use_tensorboard:
+                    writer.add_scalar('VALID/Loss', val_loss, epoch)
+                    writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
 
     # 3) Print results
     print(f'Best Epoch: {best_epoch}')
