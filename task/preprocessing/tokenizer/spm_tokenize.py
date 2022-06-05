@@ -77,9 +77,12 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain: str =
     )
 
     # Pad token add
-    processed_sequences['train']['input_ids'] = pad_add(train_src_input_ids, max_len)
-    processed_sequences['valid']['input_ids'] = pad_add(valid_src_input_ids, max_len)
-    processed_sequences['test']['input_ids'] = pad_add(test_src_input_ids, max_len)
+    processed_sequences['train']['input_ids'] = train_src_input_ids
+    processed_sequences['valid']['input_ids'] = valid_src_input_ids
+    processed_sequences['test']['input_ids'] = test_src_input_ids
+    # processed_sequences['train']['input_ids'] = pad_add(train_src_input_ids, max_len)
+    # processed_sequences['valid']['input_ids'] = pad_add(valid_src_input_ids, max_len)
+    # processed_sequences['test']['input_ids'] = pad_add(test_src_input_ids, max_len)
 
     # # Attention mask encoding
     processed_sequences['train']['attention_mask'] = list()

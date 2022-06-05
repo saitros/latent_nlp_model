@@ -145,6 +145,8 @@ if __name__=='__main__':
                         help="Ralamb's weight decay; Default is 1e-5")
     parser.add_argument('--clip_grad_norm', default=5, type=int, 
                         help='Graddient clipping norm; Default is 5')
+    parser.add_argument('--label_smoothing_eps', default=0.05, type=float,
+                        help='')
     # Testing setting
     parser.add_argument('--test_batch_size', default=32, type=int, 
                         help='Test batch size; Default is 32')

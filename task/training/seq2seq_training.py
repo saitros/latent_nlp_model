@@ -218,7 +218,9 @@ def seq2seq_training(args):
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=model.pad_idx)
+                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, 
+                                                        trg_pad_idx=model.pad_idx,
+                                                        smoothing_eps=args.label_smoothing_eps)
                         total_loss = nmt_loss + dist_loss
 
                     scaler.scale(total_loss).backward()
@@ -250,7 +252,7 @@ def seq2seq_training(args):
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold)
+                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
                         total_loss = nmt_loss + dist_loss
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)

@@ -66,12 +66,12 @@ def data_preprocessing(args):
     elif args.task in ['translation', 'style_transfer', 'summarization']:
         if args.tokenizer == 'spm':
             processed_src, word2id_src = spm_tokenizing(src_list, args, domain='src')
-            processed_trg, word2id_trg = spm_tokenizing(trg_list, args, domain='trg')
+            processed_trg, word2id_trg = spm_tokenizing(trg_list, args, domain='trg', src_trg_identical=args.src_trg_identical)
         # elif args.tokenizer == 'spacy':
         #     processed_src, processed_trg, word2id = spacy_tokenizing(src_list, trg_list, args)
         else:
             processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
-            processed_trg, word2id_trg = plm_tokenizing(trg_list, args, domain='trg', language=trg_language, src_trg_identical=args.src_trg_identical)
+            processed_trg, word2id_trg = plm_tokenizing(trg_list, args, domain='trg', language=trg_language)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
 
