@@ -132,16 +132,17 @@ def seq2seq_training(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            variational_mode=args.variational_mode, parallel=args.parallel)
+                            variational_mode=args.variational_mode, z_var=args.z_var,
+                            parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     elif args.model_type == 'T5':
         model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
-                          variational_mode=args.variational_mode, 
+                          variational_mode=args.variational_mode, z_var=args.z_var,
                           decoder_full_model=True, device=device)
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
-                            variational_mode=args.variational_mode,
+                            variational_mode=args.variational_mode, z_var=args.z_var,
                             d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
     # elif args.model_type == 'Bert':

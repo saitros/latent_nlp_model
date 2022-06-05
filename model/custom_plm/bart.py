@@ -10,7 +10,8 @@ from ..latent_module.latent import Latent_module
 
 class custom_Bart(nn.Module):
     def __init__(self, isPreTrain, PreTrainMode,
-                 variational_mode, d_latent, emb_src_trg_weight_sharing: bool =True):
+                 variational_mode, d_latent, z_var,
+                 emb_src_trg_weight_sharing: bool =True):
         super().__init__()
 
         """
@@ -50,7 +51,7 @@ class custom_Bart(nn.Module):
 
         # Variational model setting
         self.variational_mode = variational_mode
-        self.latent_module = Latent_module(self.d_hidden, d_latent, variational_mode)
+        self.latent_module = Latent_module(self.d_hidden, d_latent, variational_mode, z_var)
 
     def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask, 
                 non_pad_position=None, tgt_subsqeunt_mask=None):
@@ -82,15 +83,19 @@ class custom_Bart(nn.Module):
             # Target sentence latent mapping
             with torch.no_grad():
                 if self.emb_src_trg_weight_sharing:
-                    encoder_out_trg = self.encoder_model(inputs_embeds=trg_input_embeds_,
+                    trg_encoder_out = self.encoder_model(inputs_embeds=trg_input_embeds_,
                                                          attention_mask=trg_attention_mask_copy)
-                    encoder_out_trg = encoder_out_trg['last_hidden_state']
+                    trg_encoder_out = trg_encoder_out['last_hidden_state']
                 else:
-                    encoder_out_trg = self.encoder_model(input_ids=trg_input_ids_copy,
+                    trg_encoder_out = self.encoder_model(input_ids=trg_input_ids_copy,
                                                          attention_mask=trg_attention_mask_copy)
-                    encoder_out_trg = encoder_out_trg['last_hidden_state']
+                    trg_encoder_out = trg_encoder_out['last_hidden_state']
 
-            src_encoder_out, dist_loss = self.latent_module(src_encoder_out, encoder_out_trg)
+            src_encoder_out = src_encoder_out.transpose(0,1)
+            trg_encoder_out = trg_encoder_out.transpose(0,1)
+
+            src_encoder_out, dist_loss = self.latent_module(src_encoder_out, trg_encoder_out)
+            src_encoder_out = src_encoder_out.transpose(0,1)
         else:
             dist_loss = torch.tensor(0, dtype=torch.float)
 
@@ -123,9 +128,23 @@ class custom_Bart(nn.Module):
                                              attention_mask=src_attention_mask)
         src_encoder_out = src_encoder_out['last_hidden_state']
 
-        if self.variational_mode != 0:
-            z = model.latent_module.context_to_mu(src_encoder_out)
-            src_context = model.latent_module.z_to_context(z)
+        src_encoder_out = src_encoder_out.transpose(0,1)
+
+        if self.variational_mode == 1:
+            z = self.latent_module.context_to_mu(src_encoder_out)
+            src_context = self.latent_module.z_to_context(z)
+
+            src_encoder_out = torch.add(src_encoder_out, src_context)
+
+        if self.variational_mode == 1:
+            z = self.latent_module.context_to_mu(src_encoder_out)
+            src_context = self.latent_module.z_to_context(z)
+
+            src_encoder_out = torch.add(src_encoder_out, src_context)
+
+        if self.variational_mode == 1:
+            z = self.latent_module.context_to_mu(src_encoder_out)
+            src_context = self.latent_module.z_to_context(z)
 
             src_encoder_out = torch.add(src_encoder_out, src_context)
 

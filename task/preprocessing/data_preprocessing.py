@@ -71,7 +71,7 @@ def data_preprocessing(args):
         #     processed_src, processed_trg, word2id = spacy_tokenizing(src_list, trg_list, args)
         else:
             processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
-            processed_trg, word2id_trg = plm_tokenizing(trg_list, args, domain='trg', language=trg_language)
+            processed_trg, word2id_trg = plm_tokenizing(trg_list, args, domain='trg', language=trg_language, src_trg_identical=args.src_trg_identical)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
 

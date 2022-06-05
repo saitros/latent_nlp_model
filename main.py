@@ -75,6 +75,8 @@ if __name__=='__main__':
                         help='Padding token index; Default is 2')
     parser.add_argument('--src_trg_reverse', action='store_true')
     parser.add_argument('--with_eda', action='store_true')
+    parser.add_argument('--src_trg_identical', default=True, type=str2bool,
+                        help='')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
@@ -124,6 +126,7 @@ if __name__=='__main__':
     parser.add_argument('--lr_lambda', default=0.95, type=float,
                         help="Lambda learning scheduler's lambda; Default is 0.95")
     # Training setting
+    parser.add_argument('--z_var', default=2, type=int)
     parser.add_argument('--min_len', default=4, type=int, 
                         help="Sentences's minimum length; Default is 4")
     parser.add_argument('--src_max_len', default=300, type=int, 

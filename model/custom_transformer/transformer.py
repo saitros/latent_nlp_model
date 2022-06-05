@@ -15,7 +15,7 @@ class Transformer(nn.Module):
             d_latent=256, num_common_layer=10, num_encoder_layer=10, num_decoder_layer=10, 
             src_max_len=100, trg_max_len=100, 
             trg_emb_prj_weight_sharing=False, emb_src_trg_weight_sharing=True,
-            dropout=0.1, embedding_dropout=0.1, variational_mode=0, parallel=False):
+            dropout=0.1, embedding_dropout=0.1, variational_mode=0, z_var=2, parallel=False):
 
         super(Transformer, self).__init__()
 
@@ -63,7 +63,7 @@ class Transformer(nn.Module):
 
         # Variational model setting
         self.variational_mode = variational_mode
-        self.latent_module = Latent_module(d_model, d_latent, variational_mode)
+        self.latent_module = Latent_module(d_model, d_latent, variational_mode, z_var)
         
         # Weight sharing
         # self.x_logit_scale = 1.
@@ -80,7 +80,7 @@ class Transformer(nn.Module):
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
-        trg_input_ids_copy = trg_input_ids.clone().detach().required_grad_(True)
+        trg_input_ids_copy = trg_input_ids.clone().detach()#.required_grad_(True)
         trg_input_ids = trg_input_ids[:, :-1]
 
         # Key padding mask setting
@@ -116,7 +116,6 @@ class Transformer(nn.Module):
             # Variational
             if self.variational_mode != 0:
                 # Target sentence latent mapping
-                # with torch.no_grad():
                 for encoder in self.encoders:
                     encoder_out_trg = encoder(self.trg_embedding(trg_input_ids_copy).transpose(0, 1), 
                                                 src_key_padding_mask=tgt_key_padding_mask_)
