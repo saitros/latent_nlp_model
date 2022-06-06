@@ -49,9 +49,22 @@ class Latent_module(nn.Module):
                 nn.GELU(),
             )
             
+            # Add for GMVAE
+            self.num_cls = 2
+            self.gm_context_to_cls = nn.Linear(300, self.num_cls) # (token, num_class)
+            self.init_weight()
+            self.gm_context_to_mu = nn.Linear(d_model + self.num_cls, d_latent)
+            self.gm_context_to_logvar = nn.Linear(d_model + self.num_cls, d_latent)
+            self.gm_z_to_context = nn.Linear(d_latent, d_model + self.num_cls)
+       
             self.kl_criterion = GaussianKLLoss()
             self.mmd_criterion = MaximumMeanDiscrepancyLoss()
 
+            
+    def init_weight(self):
+        initrange = 0.5
+        self.gm_context_to_cls.weight.data.uniform_(-initrange, initrange)
+        
     def forward(self, encoder_out_src, encoder_out_trg=None):
 
     #===================================#
@@ -361,3 +374,32 @@ class Latent_module(nn.Module):
             encoder_out_total = torch.add(encoder_out_src, src_latent)
 
         return encoder_out_total
+    
+    
+    #===================================#
+    #================GMVAE==============#
+    #===================================#
+
+        if self.variational_mode == 11:
+
+            # classifiction 
+            x_to_cls = encoder_out_src.mean(dim=2).view(encoder_out_src.size(1), -1) # (token, batch, 1) 
+            distribution_cls = self.gm_context_to_cls(x_to_cls) # (batch, num_cls) 
+            distribution_cls_cp = distribution_cls.unsqueeze(1).repeat(1, encoder_out_src.size(0), 1).view(300, 48, -1) # (batch, token, num_cls)
+
+            # concat
+            gm_inp = torch.cat((encoder_out_src, distribution_cls_cp), dim=2) # (tokn, batch, d_latent + num_cls)
+
+            src_mu = self.gm_context_to_mu(gm_inp) # (token, batch, d_latent)
+            src_logvar = self.gm_context_to_logvar(gm_inp) # (token, batch, d_latent)
+
+            mu = src_mu.view(gm_inp.size(1), -1)
+            logvar = src_logvar.view(gm_inp.size(1), -1)
+            dist_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+            std = src_logvar.mul(0.5).exp_()
+            eps = Variable(std.data.new(std.size()).normal_())
+            z = eps.mul(std).add_(src_mu)
+
+            return encoder_out_total, dist_loss, distribution_cls
+    
