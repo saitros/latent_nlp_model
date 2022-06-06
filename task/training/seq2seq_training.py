@@ -152,7 +152,6 @@ def seq2seq_training(args):
                             num_workers=args.num_workers)
     }
     write_log(logger, f"Total number of trainingsets  iterations - {len(dataset_dict['train'])}, {len(dataloader_dict['train'])}")
-
     
     # 3) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)

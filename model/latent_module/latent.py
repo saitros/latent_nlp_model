@@ -327,7 +327,7 @@ class Latent_module(nn.Module):
     #==============CNN+VAE==============#
     #===================================#
 
-        if self.variational_mode == 6:
+        if self.variational_mode == 7:
 
             encoder_out_src = encoder_out_src.transpose(0,1) # (batch, token, d_model)
             encoder_out_src = encoder_out_src.transpose(1,2) # (batch, d_model, token)
@@ -339,15 +339,15 @@ class Latent_module(nn.Module):
             src_latent = self.latent_decoder(src_mu) # (batch, d_model, token)
 
             src_latent = src_latent.transpose(1,2).transpose(0,1) # (token, batch, d_model)
-            encoder_out_src = encoder_out_src.transpose(0,1) # (token, batch, d_model)
+            encoder_out_src = encoder_out_src.transpose(1,2).transpose(0,1) # (token, batch, d_model)
 
             encoder_out_total = torch.add(encoder_out_src, src_latent)
-
+            
     #===================================#
     #==============CNN+WAE==============#
     #===================================#
 
-        if self.variational_mode == 7:
+        if self.variational_mode == 8:
             # Source sentence latent mapping
             encoder_out_src = encoder_out_src.transpose(1,2)
 

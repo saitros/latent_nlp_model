@@ -5,6 +5,7 @@ import argparse
 from task.preprocessing.data_preprocessing import data_preprocessing
 from task.training.seq2label_training import seq2label_training
 from task.training.seq2seq_training import seq2seq_training
+from task.testing.seq2seq_testing import seq2seq_testing
 # Utils
 from utils import str2bool, path_check
 
@@ -24,6 +25,10 @@ def main(args):
 
         if args.task in ['classification']:
             seq2label_training(args)
+
+    if args.testing:
+        if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
+            seq2seq_testing(args)
 
     # Time calculate
     print(f'Done! ; {round((time.time()-total_start_time)/60, 3)}min spend')
@@ -75,7 +80,7 @@ if __name__=='__main__':
                         help='Padding token index; Default is 2')
     parser.add_argument('--src_trg_reverse', action='store_true')
     parser.add_argument('--with_eda', action='store_true')
-    parser.add_argument('--src_trg_identical', default=True, type=str2bool,
+    parser.add_argument('--src_trg_identical', default=False, type=str2bool,
                         help='')
     # Model setting
     # 0) Model selection
