@@ -29,11 +29,11 @@ class Latent_module(nn.Module):
 
         if self.variational_mode >= 7:
             self.latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=5, stride=3),
+                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=5, stride=3, bias=False),
                 nn.GELU(),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=3),
+                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=3, bias=False),
                 nn.GELU(),
-                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=10, stride=1),
+                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=10, stride=1, bias=False),
                 nn.GELU(),
             )
 
@@ -41,11 +41,11 @@ class Latent_module(nn.Module):
             self.context_to_logvar = nn.Linear(d_latent, d_latent)
 
             self.latent_decoder = nn.Sequential(
-                nn.ConvTranspose1d(in_channels=d_latent, out_channels=256, kernel_size=10, stride=1),
+                nn.ConvTranspose1d(in_channels=d_latent, out_channels=256, kernel_size=10, stride=1, bias=False),
                 nn.GELU(),
-                nn.ConvTranspose1d(in_channels=256, out_channels=512, kernel_size=5, stride=3),
+                nn.ConvTranspose1d(in_channels=256, out_channels=512, kernel_size=5, stride=3, bias=False),
                 nn.GELU(),
-                nn.ConvTranspose1d(in_channels=512, out_channels=d_model, kernel_size=7, stride=3),
+                nn.ConvTranspose1d(in_channels=512, out_channels=d_model, kernel_size=7, stride=3, bias=False),
                 nn.GELU(),
             )
             
@@ -232,12 +232,8 @@ class Latent_module(nn.Module):
 
         if self.variational_mode == 8:
 
-            encoder_out_src = encoder_out_src.transpose(0,1) # (batch, token, d_model)
-            encoder_out_trg = encoder_out_trg.transpose(0,1) # (batch, token, d_model)
-
-            # Source sentence latent mapping
-            encoder_out_src = encoder_out_src.transpose(1,2) # (batch, d_model, token)
-            encoder_out_trg = encoder_out_trg.transpose(1,2) # (batch, d_model, token)
+            encoder_out_src = encoder_out_src.permute(1,2,0) # (batch, d_model, token)
+            encoder_out_trg = encoder_out_trg.permute(1,2,0) # (batch, d_model, token)
 
             src_latent = self.latent_encoder(encoder_out_src) # (batch, d_latent, 1)
             trg_latent = self.latent_encoder(encoder_out_trg) # (batch, d_latent, 1)
@@ -248,8 +244,8 @@ class Latent_module(nn.Module):
             #
             src_latent = self.latent_decoder(src_latent) # (batch, d_model, token)
 
-            src_latent = src_latent.transpose(1,2).transpose(0,1) # (token, batch, d_model)
-            encoder_out_src = encoder_out_src.transpose(1,2).transpose(0,1) # (token, batch, d_model)
+            src_latent = src_latent.permute(2, 0, 1) # (token, batch, d_model)
+            encoder_out_src = encoder_out_src.permute(2, 0, 1) # (token, batch, d_model)
 
             encoder_out_total = torch.add(encoder_out_src, src_latent)
 

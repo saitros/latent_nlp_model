@@ -111,12 +111,20 @@ class Transformer(nn.Module):
                     if i == 0:
                         encoder_out_trg_cat = encoder(encoder_out_trg, 
                                                       src_key_padding_mask=tgt_key_padding_mask_).unsqueeze(0)
-                    else:
-                        encoder_out_trg_ = encoder(encoder_out_trg_cat[-1], 
-                            src_key_padding_mask=tgt_key_padding_mask_).unsqueeze(0)
-                        encoder_out_trg_cat = torch.cat((encoder_out_trg_cat, encoder_out_trg_), dim=0)
 
-                encoder_out, dist_loss = self.latent_module(encoder_out, encoder_out_trg)
+                        encoder_out_pre, dist_loss = self.latent_module(encoder_out_cat[i], encoder_out_trg_cat[i])
+                        encoder_out_cat[i] = torch.add(encoder_out_cat[i], encoder_out_pre)
+                    else:
+                        encoder_out_trg_pre = encoder(encoder_out_trg_cat[-1], 
+                            src_key_padding_mask=tgt_key_padding_mask_).unsqueeze(0)
+                        encoder_out_trg_cat = torch.cat((encoder_out_trg_cat, encoder_out_trg_pre), dim=0)
+
+                        encoder_out_pre, dist_loss_pre = self.latent_module(encoder_out, encoder_out_trg)
+                        dist_loss += dist_loss_pre
+                        encoder_out_cat[i] = torch.add(encoder_out_cat[i], encoder_out_pre)
+
+            else:
+                dist_loss = torch.tensor(0, dtype=torch.float)
 
             for i, decoder in enumerate(self.decoders):
                 decoder_out = decoder(decoder_out, encoder_out_cat[i], tgt_mask=tgt_subsqeunt_mask,

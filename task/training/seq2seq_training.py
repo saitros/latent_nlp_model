@@ -96,25 +96,6 @@ def seq2seq_training(args):
     gc.enable()
     write_log(logger, "Finished loading data!")
 
-    # 2) Dataloader setting
-    dataset_dict = {
-        'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
-                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-        'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-    }
-    dataloader_dict = {
-        'train': DataLoader(dataset_dict['train'], drop_last=True,
-                            batch_size=args.batch_size, shuffle=True, pin_memory=True,
-                            num_workers=args.num_workers),
-        'valid': DataLoader(dataset_dict['valid'], drop_last=False,
-                            batch_size=args.batch_size, shuffle=False, pin_memory=True,
-                            num_workers=args.num_workers)
-    }
-    write_log(logger, f"Total number of trainingsets  iterations - {len(dataset_dict['train'])}, {len(dataloader_dict['train'])}")
-
     #===================================#
     #===========Train setting===========#
     #===================================#
@@ -150,8 +131,30 @@ def seq2seq_training(args):
     #                       variational_mode=args.variational_mode, 
     #                       decoder_full_model=True, device=device)
     model = model.to(device)
+
+    # 2) Dataloader setting
+    dataset_dict = {
+        'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
+                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+        'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
+                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+    }
+    dataloader_dict = {
+        'train': DataLoader(dataset_dict['train'], drop_last=True,
+                            batch_size=args.batch_size, shuffle=True, pin_memory=True,
+                            num_workers=args.num_workers),
+        'valid': DataLoader(dataset_dict['valid'], drop_last=False,
+                            batch_size=args.batch_size, shuffle=False, pin_memory=True,
+                            num_workers=args.num_workers)
+    }
+    write_log(logger, f"Total number of trainingsets  iterations - {len(dataset_dict['train'])}, {len(dataloader_dict['train'])}")
+
     
-    # 2) Optimizer & Learning rate scheduler setting
+    # 3) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)
     scheduler = shceduler_select(optimizer, dataloader_dict, args)
     scaler = GradScaler()
