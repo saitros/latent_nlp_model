@@ -77,6 +77,7 @@ class Transformer(nn.Module):
             self.x_logit_scale = (d_model ** -0.5)
 
         if emb_src_trg_weight_sharing:
+            assert src_vocab_num == trg_vocab_num
             self.src_embedding.token.weight = self.trg_embedding.token.weight
             
     def forward(self, src_input_ids, src_attention_mask,
@@ -88,13 +89,13 @@ class Transformer(nn.Module):
         trg_input_ids = trg_input_ids[:, :-1]
 
         # Key padding mask setting
-        src_key_padding_mask = (src_input_ids == self.pad_idx)
-        tgt_key_padding_mask = (trg_input_ids == self.pad_idx)
-        tgt_key_padding_mask_ = (trg_input_ids_copy == self.pad_idx)
+        src_key_padding_mask = ~src_attention_mask.bool()
+        tgt_key_padding_mask = ~trg_input_ids.bool()
+        tgt_key_padding_mask_ = ~trg_input_ids_copy.bool()
 
         # Embedding
-        encoder_out = self.src_embedding(src_input_ids).transpose(0, 1)
-        decoder_out = self.trg_embedding(trg_input_ids).transpose(0, 1)
+        encoder_out = self.src_embedding(src_input_ids).transpose(0, 1) # (token, batch, d_model)
+        decoder_out = self.trg_embedding(trg_input_ids).transpose(0, 1) # (token, batch, d_model)
 
         # Parallel Transformer
         if self.parallel:

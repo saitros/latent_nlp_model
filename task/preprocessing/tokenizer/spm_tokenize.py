@@ -88,12 +88,12 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain: str =
     processed_sequences['valid']['attention_mask'] = list()
     processed_sequences['test']['attention_mask'] = list()
 
-    for ind in tqdm(processed_sequences['train']['input_ids']):
-        processed_sequences['train']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+    for ind in processed_sequences['train']['input_ids']:
+        processed_sequences['train']['attention_mask'].append((ind != 0).astype(int))
     for ind in processed_sequences['valid']['input_ids']:
-        processed_sequences['valid']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+        processed_sequences['valid']['attention_mask'].append((ind != 0).astype(int))
     for ind in processed_sequences['test']['input_ids']:
-        processed_sequences['test']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+        processed_sequences['test']['attention_mask'].append((ind != 0).astype(int))
 
     # Segment encoding
     # processed_src['train']['token_type_ids'] = list()

@@ -44,18 +44,18 @@ if __name__=='__main__':
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
     # Path setting
-    parser.add_argument('--preprocess_path', default='./preprocessed', type=str,
+    parser.add_argument('--preprocess_path', default='/mnt/md0/kyohoon/latent/preprocessed', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='/HDD/dataset', type=str,
+    parser.add_argument('--data_path', default='/mnt/md0/dataset', type=str,
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
     parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
                         help='; Default is 3.0.0')
-    parser.add_argument('--model_save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
+    parser.add_argument('--model_save_path', default='/mnt/md0/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     parser.add_argument('--result_path', default='./results', type=str,
-                        help='Results file path')               
+                        help='Results file path')
     # Preprocessing setting
     parser.add_argument('--tokenizer', default='spm', choices=[
         'spm', 'bert', 'bart', 'T5'

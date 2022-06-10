@@ -8,7 +8,6 @@ import logging
 import sentencepiece as spm
 from tqdm import tqdm
 from collections import defaultdict
-from nltk.translate.bleu_score import corpus_bleu
 # Import PyTorch
 import torch
 from torch import nn
@@ -133,7 +132,7 @@ def seq2seq_testing(args):
     else:
         preprocess_save_path = os.path.join(args.preprocess_path, args.data_name, args.tokenizer)
         spm_model = spm.SentencePieceProcessor()
-        spm_model.Load(f'{preprocess_save_path}/m_trg_{args.sentencepiece_model}_{args.trg_vocab_size}.model')
+        spm_model.Load(f'{preprocess_save_path}/m_src_{args.sentencepiece_model}_{args.trg_vocab_size}.model')
 
     # Beam search
     with torch.no_grad():
@@ -152,4 +151,9 @@ def seq2seq_testing(args):
 
             predicted = model.generate(src_sequence, src_att, beam_size=5, beam_alpha=0.7, repetition_penalty=0.7, device=device)
 
-            print(out)
+            for i, predicted_sequence in enumerate(predicted):
+                print('Predicted')
+                print(spm_model.DecodeIds(predicted_sequence))
+                print('Label')
+                print(spm_model.DecodeIds(trg_sequence.tolist()[i]))
+                print()

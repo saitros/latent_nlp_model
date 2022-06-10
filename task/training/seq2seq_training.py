@@ -126,10 +126,6 @@ def seq2seq_training(args):
                             variational_mode=args.variational_mode, z_var=args.z_var,
                             d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
-    # elif args.model_type == 'Bert':
-    #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
-    #                       variational_mode=args.variational_mode, 
-    #                       decoder_full_model=True, device=device)
     model = model.to(device)
 
     # 2) Dataloader setting
@@ -214,11 +210,10 @@ def seq2seq_training(args):
 
                 # Train
                 if phase == 'train':
-
                     with autocast():
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
-                                                     trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
-                                                     non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                                                    trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
+                                                    non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
                         nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, 
                                                         trg_pad_idx=model.pad_idx,
