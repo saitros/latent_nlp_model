@@ -44,7 +44,7 @@ class Latent_module(nn.Module):
             self.kl_criterion = GaussianKLLoss()
             self.mmd_criterion = MaximumMeanDiscrepancyLoss()
         
-        if self.variational_mode == 8:
+        if self.variational_mode == 9:
             self.content_latent_encoder = nn.Sequential(
                 nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=5, stride=5), # (batch_size, d_model, 60)
                 nn.GELU(),
@@ -302,7 +302,7 @@ class Latent_module(nn.Module):
     #==============CNN+WAE==============#
     #==============GMM&SIM==============#
 
-        if self.variational_mode == 8:
+        if self.variational_mode == 9:
             # Source sentence latent mapping
             encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
             encoder_out_trg = encoder_out_trg.permute(1, 2, 0) # To: (batch_size, d_model, seq_len)
@@ -314,7 +314,7 @@ class Latent_module(nn.Module):
             trg_content_latent = trg_content_latent.squeeze(2) # (batch_size, d_latent)
 
             # 1-2. WAE Process
-            # 1-2-1. Draw fake content latent from N~(0,1)
+            # 1-2-1. Draw fake content latent from N~(0,2)
             fake_content_latent = torch.randn_like(src_content_latent) * 2 # (batch_size, d_latent)
 
             # 1-2-2. get mmd_loss between src_content_latent and fake_content_latent, trg_content_latent and fake_content_latent
@@ -336,7 +336,7 @@ class Latent_module(nn.Module):
             fake_style_latent = fake_style_latent.to(device)
 
             # 2-2-2. get mmd_loss between src_style_latent and fake_style_latent, trg_style_latent and fake_style_latent
-            mmd_loss_style_src = self.mmd_criterion(src_style_latent, fake_style_latent, 0.5) # z_var is 1 now 
+            mmd_loss_style_src = self.mmd_criterion(src_style_latent, fake_style_latent, 0.5) # z_var is 0.5 now 
             mmd_loss_style_trg = self.mmd_criterion(trg_style_latent, fake_style_latent, 0.5) # Mixture dist에서 MMD가 제대로 작동하는지?
 
             # 2-3. Similarity Loss - src_style_latent and trg_style_latent
