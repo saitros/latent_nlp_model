@@ -11,9 +11,11 @@ def pad_add(list_, max_len: int = 300):
             ind = np.zeros(max_len, dtype=np.int32)
             ind[:len(ind_)] = np.array(ind_, dtype=np.int32)
             ind_list.append(ind)
+        else:
+            ind_list.append(ind_[:max_len])
     return np.array(ind_list, dtype=np.int32)
 
-def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain='src'):
+def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain: str ='src', src_trg_identical: bool = False):
 
     # 0) Path Setting
     if not os.path.exists(os.path.join(args.preprocess_path, args.data_name)):
@@ -43,13 +45,16 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain='src')
         for text in sequence_dict['train']:
             f.write(f'{text}\n')
 
-    spm.SentencePieceProcessor()
-    spm.SentencePieceTrainer.Train(
-        f'--input={preprocess_save_path}/{domain}.txt --model_type={args.sentencepiece_model} '
-        f'--model_prefix={preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size} '
-        f'--vocab_size={vocab_size} --character_coverage={character_coverage} '
-        f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
-        f'--split_by_whitespace=true')
+    if src_trg_identical:
+        domain = 'src'
+    else:
+        spm.SentencePieceProcessor()
+        spm.SentencePieceTrainer.Train(
+            f'--input={preprocess_save_path}/{domain}.txt --model_type={args.sentencepiece_model} '
+            f'--model_prefix={preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size} '
+            f'--vocab_size={vocab_size} --character_coverage={character_coverage} '
+            f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
+            f'--split_by_whitespace=true')
 
     vocab_list = list()
     with open(f'{preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size}.vocab') as f:
@@ -83,12 +88,12 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain='src')
     processed_sequences['valid']['attention_mask'] = list()
     processed_sequences['test']['attention_mask'] = list()
 
-    for ind in tqdm(processed_sequences['train']['input_ids']):
-        processed_sequences['train']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+    for ind in processed_sequences['train']['input_ids']:
+        processed_sequences['train']['attention_mask'].append((ind != 0).astype(int))
     for ind in processed_sequences['valid']['input_ids']:
-        processed_sequences['valid']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+        processed_sequences['valid']['attention_mask'].append((ind != 0).astype(int))
     for ind in processed_sequences['test']['input_ids']:
-        processed_sequences['test']['attention_mask'].append([1 if i <= list(ind).index(args.eos_id) else 0 for i in range(max_len)])
+        processed_sequences['test']['attention_mask'].append((ind != 0).astype(int))
 
     # Segment encoding
     # processed_src['train']['token_type_ids'] = list()

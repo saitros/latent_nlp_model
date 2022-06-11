@@ -102,25 +102,6 @@ def seq2seq_training(args):
     gc.enable()
     write_log(logger, "Finished loading data!")
 
-    # 2) Dataloader setting
-    dataset_dict = {
-        'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
-                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-        'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                min_len=args.min_len, src_max_len=args.src_max_len, trg_max_len=args.trg_max_len),
-    }
-    dataloader_dict = {
-        'train': DataLoader(dataset_dict['train'], drop_last=True,
-                            batch_size=args.batch_size, shuffle=True, pin_memory=True,
-                            num_workers=args.num_workers),
-        'valid': DataLoader(dataset_dict['valid'], drop_last=False,
-                            batch_size=args.batch_size, shuffle=False, pin_memory=True,
-                            num_workers=args.num_workers)
-    }
-    write_log(logger, f"Total number of trainingsets  iterations - {len(dataset_dict['train'])}, {len(dataloader_dict['train'])}")
-
     #===================================#
     #===========Train setting===========#
     #===================================#
@@ -138,25 +119,43 @@ def seq2seq_training(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            variational_mode=args.variational_mode, parallel=args.parallel)
+                            variational_mode=args.variational_mode, z_var=args.z_var,
+                            parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     elif args.model_type == 'T5':
         model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
-                          variational_mode=args.variational_mode, 
+                          variational_mode=args.variational_mode, z_var=args.z_var,
                           decoder_full_model=True, device=device)
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
-                            variational_mode=args.variational_mode,
+                            variational_mode=args.variational_mode, z_var=args.z_var,
                             d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
-    # elif args.model_type == 'Bert':
-    #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
-    #                       variational_mode=args.variational_mode, 
-    #                       decoder_full_model=True, device=device)
     model = model.to(device)
+
+    # 2) Dataloader setting
+    dataset_dict = {
+        'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
+                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+        'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
+                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+    }
+    dataloader_dict = {
+        'train': DataLoader(dataset_dict['train'], drop_last=True,
+                            batch_size=args.batch_size, shuffle=True, pin_memory=True,
+                            num_workers=args.num_workers),
+        'valid': DataLoader(dataset_dict['valid'], drop_last=False,
+                            batch_size=args.batch_size, shuffle=False, pin_memory=True,
+                            num_workers=args.num_workers)
+    }
+    write_log(logger, f"Total number of trainingsets  iterations - {len(dataset_dict['train'])}, {len(dataloader_dict['train'])}")
     
-    # 2) Optimizer & Learning rate scheduler setting
+    # 3) Optimizer & Learning rate scheduler setting
     optimizer = optimizer_select(model, args)
     scheduler = shceduler_select(optimizer, dataloader_dict, args)
     scaler = GradScaler()
@@ -217,13 +216,14 @@ def seq2seq_training(args):
 
                 # Train
                 if phase == 'train':
-
                     with autocast():
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
-                                                     trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
-                                                     non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                                                    trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
+                                                    non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, trg_pad_idx=model.pad_idx)
+                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, 
+                                                        trg_pad_idx=model.pad_idx,
+                                                        smoothing_eps=args.label_smoothing_eps)
                         total_loss = nmt_loss + dist_loss
 
                     scaler.scale(total_loss).backward()
@@ -266,7 +266,7 @@ def seq2seq_training(args):
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold)
+                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
                         total_loss = nmt_loss + dist_loss
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
