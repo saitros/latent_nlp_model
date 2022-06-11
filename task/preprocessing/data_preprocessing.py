@@ -66,7 +66,7 @@ def data_preprocessing(args):
     elif args.task in ['translation', 'style_transfer', 'summarization']:
         if args.tokenizer == 'spm':
             processed_src, word2id_src = spm_tokenizing(src_list, args, domain='src')
-            processed_trg, word2id_trg = spm_tokenizing(trg_list, args, domain='trg')
+            processed_trg, word2id_trg = spm_tokenizing(trg_list, args, domain='trg', src_trg_identical=args.src_trg_identical)
         # elif args.tokenizer == 'spacy':
         #     processed_src, processed_trg, word2id = spacy_tokenizing(src_list, trg_list, args)
         else:
@@ -97,7 +97,7 @@ def data_preprocessing(args):
         f.create_dataset('train_src_attention_mask', data=processed_src['train']['attention_mask'])
         f.create_dataset('valid_src_input_ids', data=processed_src['valid']['input_ids'])
         f.create_dataset('valid_src_attention_mask', data=processed_src['valid']['attention_mask'])
-        if args.task in ['translation', 'style_transfer','summarization']:
+        if args.task in ['translation', 'style_transfer', 'summarization']:
             f.create_dataset('train_trg_input_ids', data=processed_trg['train']['input_ids'])
             f.create_dataset('train_trg_attention_mask', data=processed_trg['train']['attention_mask'])
             f.create_dataset('valid_trg_input_ids', data=processed_trg['valid']['input_ids'])

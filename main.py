@@ -5,6 +5,7 @@ import argparse
 from task.preprocessing.data_preprocessing import data_preprocessing
 from task.training.seq2label_training import seq2label_training
 from task.training.seq2seq_training import seq2seq_training
+from task.testing.seq2seq_testing import seq2seq_testing
 # Utils
 from utils import str2bool, path_check, set_random_seed
 
@@ -29,6 +30,10 @@ def main(args):
         if args.task in ['classification']:
             seq2label_training(args)
 
+    if args.testing:
+        if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
+            seq2seq_testing(args)
+
     # Time calculate
     print(f'Done! ; {round((time.time()-total_start_time)/60, 3)}min spend')
 
@@ -43,7 +48,7 @@ if __name__=='__main__':
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
     # Path setting
-    parser.add_argument('--preprocess_path', default='./preprocessed', type=str,
+    parser.add_argument('--preprocess_path', default='/mnt/md0/kyohoon/latent/preprocessed', type=str,
                         help='Pre-processed data save path')
     parser.add_argument('--data_path', default='/mnt/md0/dataset', type=str,
                         help='Original data path')
@@ -54,7 +59,7 @@ if __name__=='__main__':
     parser.add_argument('--model_save_path', default='/mnt/md0/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     parser.add_argument('--result_path', default='./results', type=str,
-                        help='Results file path')               
+                        help='Results file path')
     # Preprocessing setting
     parser.add_argument('--tokenizer', default='spm', choices=[
         'spm', 'bert', 'bart', 'T5'
@@ -79,6 +84,8 @@ if __name__=='__main__':
                         help='Padding token index; Default is 2')
     parser.add_argument('--src_trg_reverse', action='store_true')
     parser.add_argument('--with_eda', action='store_true')
+    parser.add_argument('--src_trg_identical', default=False, type=str2bool,
+                        help='')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_name', default='translator_basic', type=str,
@@ -130,6 +137,7 @@ if __name__=='__main__':
     parser.add_argument('--lr_lambda', default=0.95, type=float,
                         help="Lambda learning scheduler's lambda; Default is 0.95")
     # Training setting
+    parser.add_argument('--z_var', default=2, type=int)
     parser.add_argument('--min_len', default=4, type=int, 
                         help="Sentences's minimum length; Default is 4")
     parser.add_argument('--src_max_len', default=300, type=int, 
@@ -148,6 +156,8 @@ if __name__=='__main__':
                         help="Ralamb's weight decay; Default is 1e-5")
     parser.add_argument('--clip_grad_norm', default=5, type=int, 
                         help='Graddient clipping norm; Default is 5')
+    parser.add_argument('--label_smoothing_eps', default=0.05, type=float,
+                        help='')
     # Testing setting
     parser.add_argument('--test_batch_size', default=32, type=int, 
                         help='Test batch size; Default is 32')
