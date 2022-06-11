@@ -80,7 +80,7 @@ class Transformer(nn.Module):
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
-        trg_input_ids_copy = trg_input_ids.clone().detach().required_grad_(True)
+        trg_input_ids_copy = trg_input_ids.clone().detach()#.requires_grad_(True)
         trg_input_ids = trg_input_ids[:, :-1]
 
         # Key padding mask setting
