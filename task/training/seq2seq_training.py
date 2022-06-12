@@ -37,7 +37,7 @@ def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
     return loss
 
 def seq2seq_training(args):
-    device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
     #===================================#
     #==============Logging==============#
@@ -120,12 +120,12 @@ def seq2seq_training(args):
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational_mode=args.variational_mode, z_var=args.z_var,
-                            parallel=args.parallel)
+                            parallel=args.parallel, device=device)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     elif args.model_type == 'T5':
         model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
                           variational_mode=args.variational_mode, z_var=args.z_var,
-                          decoder_full_model=True, device=device)
+                          decoder_full_model=True)
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',

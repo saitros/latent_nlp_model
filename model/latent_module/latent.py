@@ -5,16 +5,15 @@ from torch.autograd import Variable
 # Import custom modules
 from .loss import GaussianKLLoss, MaximumMeanDiscrepancyLoss
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
-
 class Latent_module(nn.Module):
-    def __init__(self, d_model, d_latent, variational_mode, z_var):
+    def __init__(self, d_model, d_latent, variational_mode, z_var, device):
 
         super(Latent_module, self).__init__()
 
         self.variational_mode = variational_mode
         self.z_var = z_var
         self.loss_lambda = 1
+        self.device = device
         
         if self.variational_mode < 5:
             self.context_to_mu = nn.Linear(d_model, d_latent)
@@ -27,7 +26,7 @@ class Latent_module(nn.Module):
             self.context_to_latent = nn.Linear(d_model, d_latent)
             self.latent_to_context = nn.Linear(d_latent, d_model)
 
-            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
+            self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
 
         if self.variational_mode >= 7:
             self.latent_encoder = nn.Sequential(
@@ -42,24 +41,24 @@ class Latent_module(nn.Module):
             self.layer_norm = nn.LayerNorm(d_model, eps=1e-12)
             
             self.kl_criterion = GaussianKLLoss()
-            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
+            self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
         
         if self.variational_mode == 9:
             self.content_latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=5, stride=5), # (batch_size, d_model, 60)
+                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
                 nn.GELU(),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=5, stride=6), # (batch_size, d_model, 10)
+                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
                 nn.GELU(),
-                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=10, stride=1), # (batch_size, d_model, 1)
+                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
                 nn.GELU()
             )
 
             self.style_latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=5, stride=5), # (batch_size, d_model, 60)
+                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
                 nn.GELU(),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=5, stride=6), # (batch_size, d_model, 10)
+                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
                 nn.GELU(),
-                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=10, stride=1), # (batch_size, d_model, 1)
+                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
                 nn.GELU()
             )
 
@@ -81,7 +80,7 @@ class Latent_module(nn.Module):
             comp = torch.distributions.Independent(torch.distributions.Normal(torch.stack([mean_1, mean_2]), torch.stack([sigma_1, sigma_2])), 1) # (2, d_latent)
             self.style_latent_gmm = torch.distributions.MixtureSameFamily(mix, comp) # 
 
-            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
+            self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
             self.content_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
             self.style_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
 
@@ -315,14 +314,14 @@ class Latent_module(nn.Module):
 
             # 1-2. WAE Process
             # 1-2-1. Draw fake content latent from N~(0,2)
-            fake_content_latent = torch.randn_like(src_content_latent) * 2 # (batch_size, d_latent)
+            fake_content_latent = torch.randn_like(src_content_latent).to(self.device) * 2 # (batch_size, d_latent)
 
             # 1-2-2. get mmd_loss between src_content_latent and fake_content_latent, trg_content_latent and fake_content_latent
             mmd_loss_content_src = self.mmd_criterion(src_content_latent, fake_content_latent, 2) # z_var is 2 now
             mmd_loss_content_trg = self.mmd_criterion(trg_content_latent, fake_content_latent, 2) # z_var is 2 now
 
             # 1-3. Similarity Loss - src_content_latent and trg_content_latent
-            sim_loss_content = self.content_similiarity_criterion(src_content_latent, trg_content_latent, torch.Tensor([1]).to(device)) #self.content_similiarity_criterion(src_content_latent, trg_content_latent).mean()
+            sim_loss_content = self.content_similiarity_criterion(src_content_latent, trg_content_latent, torch.Tensor([1]).to(self.device)) #self.content_similiarity_criterion(src_content_latent, trg_content_latent).mean()
 
             # 2-1. Get style latent
             src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
@@ -333,14 +332,14 @@ class Latent_module(nn.Module):
             # 2-2. WAE Process
             # 2-2-1. Draw fake style latent from predefined GMM distribution
             fake_style_latent = self.style_latent_gmm.sample((src_style_latent.shape[0],)) # (batch_size, d_latent)
-            fake_style_latent = fake_style_latent.to(device)
+            fake_style_latent = fake_style_latent.to(self.device)
 
             # 2-2-2. get mmd_loss between src_style_latent and fake_style_latent, trg_style_latent and fake_style_latent
             mmd_loss_style_src = self.mmd_criterion(src_style_latent, fake_style_latent, 0.5) # z_var is 0.5 now 
             mmd_loss_style_trg = self.mmd_criterion(trg_style_latent, fake_style_latent, 0.5) # Mixture dist에서 MMD가 제대로 작동하는지?
 
             # 2-3. Similarity Loss - src_style_latent and trg_style_latent
-            sim_loss_style = self.style_similiarity_criterion(src_style_latent, trg_style_latent, torch.Tensor([-1]).to(device)) #self.style_similiarity_criterion(src_style_latent, trg_style_latent).mean()
+            sim_loss_style = self.style_similiarity_criterion(src_style_latent, trg_style_latent, torch.Tensor([-1]).to(self.device)) #self.style_similiarity_criterion(src_style_latent, trg_style_latent).mean()
             
             # 3-1. Translate each src latent to d_model dimension
             src_content_latent = self.content_latent_decoder(src_content_latent.unsqueeze(2)) # (batch_size, d_model, 1)
@@ -478,5 +477,29 @@ class Latent_module(nn.Module):
             encoder_out_src = encoder_out_src.transpose(0,1) # (token, batch, d_model)
 
             encoder_out_total = torch.add(encoder_out_src, src_latent)
+        
+        if self.variational_mode == 9:
+            # Source sentence latent mapping
+            encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
+
+            # 1-1. Get content latent
+            src_content_latent = self.content_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+            src_content_latent = src_content_latent.squeeze(2) # (batch_size, d_latent)
+
+            # 2-1. Get style latent
+            src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+            src_style_latent = src_style_latent.squeeze(2) # (batch_size, d_latent)
+            
+            # 3-1. Translate each src latent to d_model dimension
+            src_content_latent = self.content_latent_decoder(src_content_latent.unsqueeze(2)) # (batch_size, d_model, 1)
+            src_style_latent = self.style_latent_decoder(src_style_latent.unsqueeze(2)) # (batch_size, d_model, 1)
+
+            # 3-2. add each src latent and repeat
+            src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
+            src_latent = src_latent.repeat(1, 1, encoder_out_src.size(2)) # (batch_size, d_model, seq_len)
+
+            # 5. Get output
+            encoder_out_total = torch.add(encoder_out_src, src_latent)
+            encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
 
         return encoder_out_total

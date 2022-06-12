@@ -168,6 +168,8 @@ if __name__=='__main__':
     parser.add_argument('--repetition_penalty', default=1.3, type=float, 
                         help='Beam search repetition penalty term; Default is 1.3')
     # Seed & Logging setting
+    parser.add_argument('--device', default='cuda:0', type=str,
+                        help='Device to use for training; Default is cuda')
     parser.add_argument('--seed', default=42, type=int,
                         help='Random seed; Default is 42')
     parser.add_argument('--use_tensorboard', default=True, type=str2bool,
