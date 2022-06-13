@@ -83,6 +83,43 @@ class Latent_module(nn.Module):
             self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
             self.content_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
             self.style_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
+        
+        if self.variational_mode == 10:
+            self.content_latent_encoder = nn.Sequential(
+                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
+                nn.GELU(),
+                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
+                nn.GELU(),
+                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
+                nn.GELU()
+            )
+
+            self.style_latent_encoder = nn.Sequential(
+                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
+                nn.GELU(),
+                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
+                nn.GELU(),
+                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
+                nn.GELU()
+            )
+
+            self.content_latent_to_mu = nn.Linear(d_latent, d_latent)
+            self.content_latent_to_logvar = nn.Linear(d_latent, d_latent)
+            self.style_latent_to_mu = nn.Linear(d_latent, d_latent)
+            self.style_latent_to_logvar = nn.Linear(d_latent, d_latent)
+
+            self.content_latent_decoder = nn.Sequential(
+                nn.ConvTranspose1d(in_channels=d_latent, out_channels=d_model, kernel_size=1, stride=1),
+                nn.GELU()
+            )
+            self.style_latent_decoder = nn.Sequential(
+                nn.ConvTranspose1d(in_channels=d_latent, out_channels=d_model, kernel_size=1, stride=1),
+                nn.GELU()
+            )
+
+            self.kl_criterion = GaussianKLLoss()
+            self.content_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
+            self.style_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
 
     def forward(self, encoder_out_src, encoder_out_trg=None):
 
@@ -359,6 +396,95 @@ class Latent_module(nn.Module):
             encoder_out_total = torch.add(encoder_out_src, src_latent)
             encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
 
+        if self.variational_mode == 10:
+            # Source sentence latent mapping
+            encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
+            encoder_out_trg = encoder_out_trg.permute(1, 2, 0) # To: (batch_size, d_model, seq_len)
+
+            # 1-1. Get content latent
+            src_content_latent = self.content_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+            trg_content_latent = self.content_latent_encoder(encoder_out_trg) # (batch_size, d_latent, 1)
+            src_content_latent = src_content_latent.squeeze(2) # (batch_size, d_latent)
+            trg_content_latent = trg_content_latent.squeeze(2) # (batch_size, d_latent)
+
+            # 1-2. VAE Process
+            # 1-2-1. Get mu and logvar from src_content_latent and trg_content_latent
+            src_content_mu = self.content_latent_to_mu(src_content_latent) # (batch_size, d_latent)
+            src_content_logvar = self.content_latent_to_logvar(src_content_latent) # (batch_size, d_latent)
+            trg_content_mu = self.content_latent_to_mu(trg_content_latent) # (batch_size, d_latent)
+            trg_content_logvar = self.content_latent_to_logvar(trg_content_latent) # (batch_size, d_latent)
+
+            # 1-2-2. Reparameterization trick
+            src_content_std = src_content_logvar.mul(0.5).exp_()
+            src_content_eps = torch.randn_like(src_content_std).to(self.device)
+            src_content_z = src_content_eps * src_content_std + src_content_mu # (batch_size, d_latent)
+
+            trg_content_std = trg_content_logvar.mul(0.5).exp_()
+            trg_content_eps = torch.randn_like(trg_content_std).to(self.device)
+            trg_content_z = trg_content_eps * trg_content_std + trg_content_mu # (batch_size, d_latent)
+
+            # 1-2-3. Get kl loss with N~(0, 1)
+            kl_loss_content_src = self.kl_criterion(src_content_mu, src_content_logvar,
+                                                    torch.Tensor([0]).to(self.device),
+                                                    torch.Tensor([1]).to(self.device))
+            kl_loss_content_trg = self.kl_criterion(trg_content_mu, trg_content_logvar,
+                                                    torch.Tensor([0]).to(self.device),
+                                                    torch.Tensor([1]).to(self.device))
+
+            # 1-3. Similarity Loss - src_content_latent and trg_content_latent
+            sim_loss_content = self.content_similiarity_criterion(src_content_z, trg_content_z, torch.Tensor([1]).to(self.device))
+
+            # 2-1. Get style latent
+            src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+            trg_style_latent = self.style_latent_encoder(encoder_out_trg) # (batch_size, d_latent, 1)
+            src_style_latent = src_style_latent.squeeze(2) # (batch_size, d_latent)
+            trg_style_latent = trg_style_latent.squeeze(2) # (batch_size, d_latent)
+
+            # 2-2. VAE Process
+            # 2-2-1. Get mu and logvar from src_style_latent and trg_style_latent
+            src_style_mu = self.style_latent_to_mu(src_style_latent) # (batch_size, d_latent)
+            src_style_logvar = self.style_latent_to_logvar(src_style_latent) # (batch_size, d_latent)
+            trg_style_mu = self.style_latent_to_mu(trg_style_latent) # (batch_size, d_latent)
+            trg_style_logvar = self.style_latent_to_logvar(trg_style_latent) # (batch_size, d_latent)
+
+            # 2-2-2. Reparameterization trick
+            src_style_std = src_style_logvar.mul(0.5).exp_()
+            src_style_eps = torch.randn_like(src_style_std).to(self.device)
+            src_style_z = src_style_eps * src_style_std + src_style_mu # (batch_size, d_latent)
+
+            trg_style_std = trg_style_logvar.mul(0.5).exp_()
+            trg_style_eps = torch.randn_like(trg_style_std).to(self.device)
+            trg_style_z = trg_style_eps * trg_style_std + trg_style_mu # (batch_size, d_latent)
+
+            # 2-2-3. Get kl loss with N~(0, 1)
+            kl_loss_style_src = self.kl_criterion(src_style_mu, src_style_logvar, 
+                                                  torch.Tensor([0]).to(self.device),
+                                                  torch.Tensor([1]).to(self.device))
+            kl_loss_style_trg = self.kl_criterion(trg_style_mu, trg_style_logvar,
+                                                  torch.Tensor([0]).to(self.device),
+                                                  torch.Tensor([1]).to(self.device))
+
+            # 2-3. Similarity Loss - src_style_latent and trg_style_latent
+            sim_loss_style = self.style_similiarity_criterion(src_style_z, trg_style_z, torch.Tensor([-1]).to(self.device))
+
+            # 3-1. Translate each src latent to d_model dimension
+            src_content_latent = self.content_latent_decoder(src_content_z.unsqueeze(2)) # (batch_size, d_model, 1)
+            src_style_latent = self.style_latent_decoder(src_style_z.unsqueeze(2)) # (batch_size, d_model, 1)
+
+            # 3-2. add each src latent and repeat
+            src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
+            src_latent = src_latent.repeat(1, 1, encoder_out_src.size(2)) # (batch_size, d_model, seq_len)
+
+            # 4. Define dist_loss
+            dist_loss = kl_loss_content_src + kl_loss_content_trg + kl_loss_style_src + kl_loss_style_trg
+            sim_loss = sim_loss_content + sim_loss_style # maximize sim_loss_content, minimize sim_loss_style
+            
+            dist_loss = dist_loss + sim_loss
+
+            # 5. Get output
+            encoder_out_total = torch.add(encoder_out_src, src_latent)
+            encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
+
         return encoder_out_total, dist_loss * self.loss_lambda
 
     def generate(self, encoder_out_src):
@@ -493,6 +619,50 @@ class Latent_module(nn.Module):
             # 3-1. Translate each src latent to d_model dimension
             src_content_latent = self.content_latent_decoder(src_content_latent.unsqueeze(2)) # (batch_size, d_model, 1)
             src_style_latent = self.style_latent_decoder(src_style_latent.unsqueeze(2)) # (batch_size, d_model, 1)
+
+            # 3-2. add each src latent and repeat
+            src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
+            src_latent = src_latent.repeat(1, 1, encoder_out_src.size(2)) # (batch_size, d_model, seq_len)
+
+            # 5. Get output
+            encoder_out_total = torch.add(encoder_out_src, src_latent)
+            encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
+
+        if self.variational_mode == 10:
+            # Source sentence latent mapping
+            encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
+
+            # 1-1. Get content latent
+            src_content_latent = self.content_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+            src_content_latent = src_content_latent.squeeze(2) # (batch_size, d_latent)
+
+            # 1-2. VAE Process
+            # 1-2-1. Get mu and logvar from src_content_latent and trg_content_latent
+            src_content_mu = self.content_latent_to_mu(src_content_latent) # (batch_size, d_latent)
+            src_content_logvar = self.content_latent_to_logvar(src_content_latent) # (batch_size, d_latent)
+
+            # 1-2-2. Reparameterization trick
+            src_content_std = src_content_logvar.mul(0.5).exp_()
+            src_content_eps = torch.randn_like(src_content_std).to(self.device)
+            src_content_z = src_content_eps * src_content_std + src_content_mu # (batch_size, d_latent)
+
+            # 2-1. Get style latent
+            src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+            src_style_latent = src_style_latent.squeeze(2) # (batch_size, d_latent)
+
+            # 2-2. VAE Process
+            # 2-2-1. Get mu and logvar from src_style_latent and trg_style_latent
+            src_style_mu = self.style_latent_to_mu(src_style_latent) # (batch_size, d_latent)
+            src_style_logvar = self.style_latent_to_logvar(src_style_latent) # (batch_size, d_latent)
+
+            # 2-2-2. Reparameterization trick
+            src_style_std = src_style_logvar.mul(0.5).exp_()
+            src_style_eps = torch.randn_like(src_style_std).to(self.device)
+            src_style_z = src_style_eps * src_style_std + src_style_mu # (batch_size, d_latent)
+
+            # 3-1. Translate each src latent to d_model dimension
+            src_content_latent = self.content_latent_decoder(src_content_z.unsqueeze(2)) # (batch_size, d_model, 1)
+            src_style_latent = self.style_latent_decoder(src_style_z.unsqueeze(2)) # (batch_size, d_model, 1)
 
             # 3-2. add each src latent and repeat
             src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
