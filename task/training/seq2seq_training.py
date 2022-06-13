@@ -91,7 +91,7 @@ def seq2seq_training(args):
         src_word2id = data_['src_word2id']
         src_vocab_num = len(src_word2id)
         src_language = data_['src_language']
-        if args.task in ['translation', 'style_transfer']:
+        if args.task in ['translation', 'style_transfer', 'summarization']:
             trg_word2id = data_['trg_word2id']
             trg_vocab_num = len(trg_word2id)
             trg_language = data_['trg_language']
@@ -309,3 +309,5 @@ def seq2seq_training(args):
     # 3) Print results
     print(f'Best Epoch: {best_epoch}')
     print(f'Best Accuracy: {round(best_val_acc.item(), 2)}')
+    if args.use_tensorboard:
+        writer.add_text('VALID/Best Epoch&Accuracy', f'Best Epoch: {best_epoch}\nBest Accuracy: {round(best_val_acc.item(), 4)}')
