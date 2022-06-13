@@ -23,7 +23,7 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
         elif language == 'de':
             tokenizer = BertTokenizer.from_pretrained('bert-base-german-cased')
         else:
-            raise Exception(f'{args.language} language does not support')
+            raise Exception(f'{language} language does not support')
     elif args.tokenizer == 'bart':
         if language == 'en':
             tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
@@ -32,14 +32,16 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
         elif language == 'de':
             tokenizer = BartTokenizer.from_pretrained('Shahm/bart-german')
         else:
-            raise Exception(f'{args.language} language does not support')
+            raise Exception(f'{language} language does not support')
     elif args.tokenizer == 'T5':
         if language == 'en':
             tokenizer = T5Tokenizer.from_pretrained("t5-base")
         elif language == 'kr':
             tokenizer = T5Tokenizer.from_pretrained('KETI-AIR/ke-t5-base')
+        elif language == 'de':
+            tokenizer = T5Tokenizer.from_pretrained('t5-base')
         else:
-            raise Exception(f'{args.language} language does not support')
+            raise Exception(f'{language} language does not support')
 
     for phase in ['train', 'valid', 'test']:
         encoded_dict = \

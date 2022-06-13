@@ -1,6 +1,7 @@
 # Import modules
 import os
 import gc
+import psutil
 import h5py
 import pickle
 import logging
@@ -13,12 +14,13 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
+from torch.utils.tensorboard import SummaryWriter
 # Import custom modules
 from model.dataset import Seq2LabelDataset
 from model.custom_transformer.transformer import Transformer
 from model.custom_plm.T5 import custom_T5
 from optimizer.utils import shceduler_select, optimizer_select
-from utils import TqdmLoggingHandler, write_log
+from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 
 from transformers import BertForSequenceClassification
 
@@ -35,6 +37,10 @@ def seq2label_training(args):
     handler.setFormatter(logging.Formatter(" %(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
     logger.addHandler(handler)
     logger.propagate = False
+
+    if args.use_tensorboard:
+        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
+        writer.add_text('args', str(args))
 
     write_log(logger, 'Start training!')
 
@@ -204,6 +210,15 @@ def seq2label_training(args):
                         freq = 0
                     freq += 1
 
+                    if args.use_tensorboard:
+                        acc = (out.max(dim=1)[1] == trg_label).sum() / len(trg_label)
+                        
+                        writer.add_scalar('TRAIN/Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('USAGE/CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('USAGE/RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('USAGE/GPU_Usage', torch.cuda.memory_allocated(device=device), (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
+
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
@@ -245,6 +260,10 @@ def seq2label_training(args):
                 else:
                     else_log = f'Still {best_epoch} epoch accuracy({round(best_val_acc.item()*100, 2)})% is better...'
                     write_log(logger, else_log)
+                
+                if args.use_tensorboard:
+                    writer.add_scalar('VALID/Loss', val_loss, epoch)
+                    writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
 
     # 3) Print results
     print(f'Best Epoch: {best_epoch}')

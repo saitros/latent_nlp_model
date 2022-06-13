@@ -7,9 +7,13 @@ from task.training.seq2label_training import seq2label_training
 from task.training.seq2seq_training import seq2seq_training
 from task.testing.seq2seq_testing import seq2seq_testing
 # Utils
-from utils import str2bool, path_check
+from utils import str2bool, path_check, set_random_seed
 
 def main(args):
+    # Set random seed
+    if args.seed is not None:
+        set_random_seed(args.seed)
+
     # Time setting
     total_start_time = time.time()
 
@@ -44,15 +48,15 @@ if __name__=='__main__':
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
     # Path setting
-    parser.add_argument('--preprocess_path', default='/mnt/md0/kyohoon/latent/preprocessed', type=str,
+    parser.add_argument('--preprocess_path', default='./preprocessed', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='/mnt/md0/dataset', type=str,
+    parser.add_argument('--data_path', default='/HDD/dataset', type=str,
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
     parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
                         help='; Default is 3.0.0')
-    parser.add_argument('--model_save_path', default='/mnt/md0/kyohoon/model_checkpoint/latent', type=str,
+    parser.add_argument('--model_save_path', default='/HDD/juhwan/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
     parser.add_argument('--result_path', default='./results', type=str,
                         help='Results file path')
@@ -84,6 +88,8 @@ if __name__=='__main__':
                         help='')
     # Model setting
     # 0) Model selection
+    parser.add_argument('--model_name', default='translator_basic', type=str,
+                        help='Model name; Default is translator_basic')
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
         'custom_transformer', 'bart', 'T5', 'bert'
             ], help='Model type selection; Default is custom_transformer')
@@ -161,7 +167,15 @@ if __name__=='__main__':
                         help='Beam search length normalization; Default is 0.7')
     parser.add_argument('--repetition_penalty', default=1.3, type=float, 
                         help='Beam search repetition penalty term; Default is 1.3')
-    # Print frequency
+    # Seed & Logging setting
+    parser.add_argument('--device', default='cuda:0', type=str,
+                        help='Device to use for training; Default is cuda')
+    parser.add_argument('--seed', default=42, type=int,
+                        help='Random seed; Default is 42')
+    parser.add_argument('--use_tensorboard', default=True, type=str2bool,
+                        help='Using tensorboard; Default is True')
+    parser.add_argument('--tensorboard_path', default='./tensorboard_runs', type=str,
+                        help='Tensorboard log path; Default is ./tensorboard_runs')
     parser.add_argument('--print_freq', default=100, type=int, 
                         help='Print training process frequency; Default is 100')
     args = parser.parse_args()

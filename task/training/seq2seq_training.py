@@ -1,6 +1,7 @@
 # Import modules
 import os
 import gc
+import psutil
 import h5py
 import pickle
 import logging
@@ -12,13 +13,14 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
+from torch.utils.tensorboard import SummaryWriter
 # Import custom modules
 from model.dataset import Seq2SeqDataset
 from model.custom_transformer.transformer import Transformer
 from model.custom_plm.T5 import custom_T5
 from model.custom_plm.bart import custom_Bart
 from optimizer.utils import shceduler_select, optimizer_select
-from utils import TqdmLoggingHandler, write_log
+from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 
 def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
     ''' Calculate cross entropy loss, apply label smoothing if needed. '''
@@ -35,7 +37,7 @@ def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
     return loss
 
 def seq2seq_training(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
     #===================================#
     #==============Logging==============#
@@ -47,6 +49,10 @@ def seq2seq_training(args):
     handler.setFormatter(logging.Formatter(" %(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
     logger.addHandler(handler)
     logger.propagate = False
+
+    if args.use_tensorboard:
+        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
+        writer.add_text('args', str(args))
 
     write_log(logger, 'Start training!')
 
@@ -85,7 +91,7 @@ def seq2seq_training(args):
         src_word2id = data_['src_word2id']
         src_vocab_num = len(src_word2id)
         src_language = data_['src_language']
-        if args.task in ['translation', 'style_transfer']:
+        if args.task in ['translation', 'style_transfer', 'summarization']:
             trg_word2id = data_['trg_word2id']
             trg_vocab_num = len(trg_word2id)
             trg_language = data_['trg_language']
@@ -114,12 +120,12 @@ def seq2seq_training(args):
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational_mode=args.variational_mode, z_var=args.z_var,
-                            parallel=args.parallel)
+                            parallel=args.parallel, device=device)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     elif args.model_type == 'T5':
         model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
                           variational_mode=args.variational_mode, z_var=args.z_var,
-                          decoder_full_model=True, device=device)
+                          decoder_full_model=True)
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
@@ -243,6 +249,17 @@ def seq2seq_training(args):
                         freq = 0
                     freq += 1
 
+                    if args.use_tensorboard:
+                        acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                        
+                        writer.add_scalar('TRAIN/Total_Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('TRAIN/NMT_Loss', nmt_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('TRAIN/Latent_Loss', dist_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('USAGE/CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('USAGE/RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
+                        writer.add_scalar('USAGE/GPU_Usage', torch.cuda.memory_allocated(device=device), (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
+
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
@@ -285,6 +302,12 @@ def seq2seq_training(args):
                     else_log = f'Still {best_epoch} epoch accuracy({round(best_val_acc.item()*100, 2)})% is better...'
                     write_log(logger, else_log)
 
+                if args.use_tensorboard:
+                    writer.add_scalar('VALID/Total_Loss', val_loss, epoch)
+                    writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
+
     # 3) Print results
     print(f'Best Epoch: {best_epoch}')
     print(f'Best Accuracy: {round(best_val_acc.item(), 2)}')
+    if args.use_tensorboard:
+        writer.add_text('VALID/Best Epoch&Accuracy', f'Best Epoch: {best_epoch}\nBest Accuracy: {round(best_val_acc.item(), 4)}')

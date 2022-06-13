@@ -84,12 +84,18 @@ class MaximumMeanDiscrepancyLoss3(nn.Module):
         return torch.abs(beta * (torch.sum(K)+torch.sum(L)) - gamma * torch.sum(P))
 
 class MaximumMeanDiscrepancyLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, device):
         super(MaximumMeanDiscrepancyLoss, self).__init__()
         self.kernel = 'multiscale'
+        self.device = device
 
     def forward(self, x, y, z_var):
         xx, yy, zz = torch.mm(x, x.t()), torch.mm(y, y.t()), torch.mm(x, y.t())
+
+        xx = xx.to(self.device)
+        yy = yy.to(self.device)
+        zz = zz.to(self.device)
+
         rx = (xx.diag().unsqueeze(0).expand_as(xx))
         ry = (yy.diag().unsqueeze(0).expand_as(yy))
         
@@ -97,9 +103,9 @@ class MaximumMeanDiscrepancyLoss(nn.Module):
         dyy = ry.t() + ry - 2. * yy # Used for B in (1)
         dxy = rx.t() + ry - 2. * zz # Used for C in (1)
         
-        XX, YY, XY = (torch.zeros(xx.shape).cuda(),
-                    torch.zeros(xx.shape).cuda(),
-                    torch.zeros(xx.shape).cuda())
+        XX, YY, XY = (torch.zeros(xx.shape).to(self.device),
+                    torch.zeros(xx.shape).to(self.device),
+                    torch.zeros(xx.shape).to(self.device))
         
         if self.kernel == "multiscale":
             
@@ -109,7 +115,7 @@ class MaximumMeanDiscrepancyLoss(nn.Module):
                 YY += a**2 * (a**2 + dyy)**-1
                 XY += a**2 * (a**2 + dxy)**-1
                 
-        if self.kernel == "rbf":
+        if self.kernel == "rbf":\
         
             bandwidth_range = [10, 15, 20, 50]
             for a in bandwidth_range:

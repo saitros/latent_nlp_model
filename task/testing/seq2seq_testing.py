@@ -8,21 +8,26 @@ import logging
 import sentencepiece as spm
 from tqdm import tqdm
 from collections import defaultdict
+from nltk.translate.bleu_score import corpus_bleu
+import pandas as pd
 # Import PyTorch
 import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 # Import Huggingface
-from transformers import BartTokenizerFast
+from transformers import BertTokenizerFast, BartTokenizerFast, T5TokenizerFast
 # Import custom modules
 from model.dataset import Seq2SeqDataset
 from model.custom_transformer.transformer import Transformer
-from utils import TqdmLoggingHandler, write_log
+from model.custom_plm.T5 import custom_T5
+from model.custom_plm.bart import custom_Bart
+from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 
 def seq2seq_testing(args):
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
     #===================================#
     #==============Logging==============#
@@ -34,6 +39,10 @@ def seq2seq_testing(args):
     handler.setFormatter(logging.Formatter(" %(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
     logger.addHandler(handler)
     logger.propagate = False
+
+    if args.use_tensorboard:
+        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
+        writer.add_text('args', str(args))
 
     write_log(logger, 'Start testing!')
 
@@ -58,7 +67,7 @@ def seq2seq_testing(args):
             test_trg_input_ids = f.get('test_trg_input_ids')[:]
             test_trg_attention_mask = f.get('test_trg_attention_mask')[:]
         elif args.task in ['reconstruction']:
-            test_trg_input_ids = ftest_src_input_ids
+            test_trg_input_ids = test_src_input_ids
             test_trg_attention_mask = test_src_attention_mask
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
@@ -91,12 +100,12 @@ def seq2seq_testing(args):
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational_mode=args.variational_mode, z_var=args.z_var,
-                            parallel=args.parallel)
+                            parallel=args.parallel, device=device)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     elif args.model_type == 'T5':
         model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
                         variational_mode=args.variational_mode, z_var=args.z_var,
-                        decoder_full_model=True, device=device)
+                        decoder_full_model=True)
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
@@ -109,13 +118,14 @@ def seq2seq_testing(args):
     #                       decoder_full_model=True, device=device)
     model = model.to(device)
 
-    # loda model
+    # lode model
     model = model.to(device)
     save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
     save_file_name = os.path.join(save_path, 
                                     f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
     model.load_state_dict(torch.load(save_file_name)['model'])
     model = model.eval()
+    write_log(logger, f'Loaded model from {save_file_name}!')
 
     # 2) Dataloader setting
     test_dataset = Seq2SeqDataset(src_list=test_src_input_ids, src_att_list=test_src_attention_mask,
@@ -126,13 +136,25 @@ def seq2seq_testing(args):
                                 pin_memory=True, num_workers=args.num_workers)
     write_log(logger, f"Total number of trainingsets  iterations - {len(test_dataset)}, {len(test_dataloader)}")
 
-    # 3)
+    # 3) Load tokenizer
     if args.tokenizer == 'bart':
         tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-base')
+    elif args.tokenizer == 'bert':
+        tokenizer = BertTokenizerFast.from_pretrained('bert-base-cased')
+    elif args.tokenizer == 'T5':
+        tokenizer = T5TokenizerFast.from_pretrained('t5-base')
     else:
         preprocess_save_path = os.path.join(args.preprocess_path, args.data_name, args.tokenizer)
         spm_model = spm.SentencePieceProcessor()
         spm_model.Load(f'{preprocess_save_path}/m_src_{args.sentencepiece_model}_{args.trg_vocab_size}.model')
+
+    # 4) Define array to save results
+    source_sentences = []
+    predicted_sentences = []
+    target_sentences = []
+    #source_tokens = []
+    predicted_tokens = []
+    target_tokens = []
 
     # Beam search
     with torch.no_grad():
@@ -151,9 +173,54 @@ def seq2seq_testing(args):
 
             predicted = model.generate(src_sequence, src_att, beam_size=5, beam_alpha=0.7, repetition_penalty=0.7, device=device)
 
-            for i, predicted_sequence in enumerate(predicted):
-                print('Predicted')
-                print(spm_model.DecodeIds(predicted_sequence))
-                print('Label')
-                print(spm_model.DecodeIds(trg_sequence.tolist()[i]))
-                print()
+            for j, predicted_sequence in enumerate(predicted):
+                if args.tokenizer == 'spm':
+                    source = spm_model.DecodeIds(src_sequence.cpu().tolist()[j])
+                    predicted = spm_model.DecodeIds(predicted_sequence)
+                    target = spm_model.DecodeIds(trg_sequence.cpu().tolist()[j])
+
+                else:
+                    source = tokenizer.decode(src_sequence.cpu().tolist()[j], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+                    predicted = tokenizer.decode(predicted_sequence, skip_special_tokens=False, clean_up_tokenization_spaces=True)
+                    target = tokenizer.decode(trg_sequence.cpu().tolist()[j], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+
+                print("[Source]", source, sep='\n', end='\n')
+                print("[Predicted]", predicted, sep='\n', end='\n')
+                print("[Target]", target, sep='\n', end='\n\n')
+
+                if args.use_tensorboard:
+                    writer.add_text('TEST/Source', source, (i+1)*(j+1))
+                    writer.add_text('TEST/Predicted', predicted, (i+1)*(j+1))
+                    writer.add_text('TEST/Target', target, (i+1)*(j+1))
+
+                # save sentences
+                source_sentences.append(source)
+                predicted_sentences.append(predicted)
+                target_sentences.append(target)
+                
+                # Get BLEU score
+                predicted_token = [trg_id2word[idx] for idx in predicted_sequence]
+                target_token = [trg_id2word[idx] for idx in trg_sequence.cpu().tolist()[j]]
+                target_tokens.append([target_token])
+                predicted_tokens.append(predicted_token)
+                corpus_bleu_score = corpus_bleu(target_tokens, predicted_tokens)
+
+                if args.use_tensorboard:
+                    writer.add_scalar('TEST/Corpus BLEU', corpus_bleu_score, i)
+            
+    final_bleu_score = corpus_bleu(target_tokens, predicted_tokens)
+    write_log(logger, f'[TEST] Final BLEU score: {final_bleu_score}')
+    if args.use_tensorboard:
+        writer.add_text('TEST/Final BLEU', str(final_bleu_score))
+    
+    # Save sentences to csv file
+    result_path = os.path.join(args.result_path, args.task, args.data_name, args.tokenizer)
+    save_file_name = os.path.join(result_path, 
+                            f'TEST_result_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.csv')
+    
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+    
+    # Make pandas dataframe with source_sentences, predicted_sentences, target_sentences
+    df = pd.DataFrame({'source': source_sentences, 'predicted': predicted_sentences, 'target': target_sentences})
+    df.to_csv(save_file_name, index=False)
