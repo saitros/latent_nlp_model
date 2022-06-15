@@ -83,7 +83,6 @@ Implementation of the Bart model in "[BART: Denoising Sequence-to-Sequence Pre-t
 ## Authors
 
 * **Kyohoon Jin** - *Project Manager* - [[Link]](https://github.com/fhzh123)
-* **Jaeyoung Park** - *Sub Manager* - [[Link]](https://github.com/jury124)
 * **Juhwan Choi** - *Enginner* - [[Link]](https://github.com/c-juhwan)
 * **Junho Lee** - *Enginner* - [[Link]](https://github.com/saitros)
 

@@ -21,23 +21,10 @@ from model.custom_plm.T5 import custom_T5
 from model.custom_plm.bart import custom_Bart
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
-
-def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
-    ''' Calculate cross entropy loss, apply label smoothing if needed. '''
-    gold = gold.contiguous().view(-1)
-    n_class = pred.size(1)
-
-    one_hot = torch.zeros_like(pred).scatter(1, gold.view(-1, 1), 1)
-    one_hot = one_hot * (1 - smoothing_eps) + (1 - one_hot) * smoothing_eps / (n_class - 1)
-    log_prb = F.log_softmax(pred, dim=1)
-
-    non_pad_mask = gold.ne(trg_pad_idx)
-    loss = -(one_hot * log_prb).sum(dim=1)
-    loss = loss.masked_select(non_pad_mask).mean()
-    return loss
+from task.training.training_utils import label_smoothing_loss, model_save_name
 
 def seq2seq_training(args):
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     #===================================#
     #==============Logging==============#
@@ -51,8 +38,8 @@ def seq2seq_training(args):
     logger.propagate = False
 
     if args.use_tensorboard:
-        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
-        writer.add_text('args', str(args))
+        tb_writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
+        tb_writer.add_text('args', str(args))
 
     write_log(logger, 'Start training!')
 
@@ -168,7 +155,7 @@ def seq2seq_training(args):
         save_file_name = os.path.join(save_path, 
                                         f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
         checkpoint = torch.load(save_file_name)
-        start_epoch = checkpoint['epoch']
+        start_epoch = checkpoint['epoch'] - 1
         model.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['scheduler'])
@@ -179,7 +166,7 @@ def seq2seq_training(args):
     #=========Model Train Start=========#
     #===================================#
 
-    best_val_acc = 0
+    best_val_loss = 1e+10
 
     write_log(logger, 'Traing start!')
 
@@ -221,10 +208,10 @@ def seq2seq_training(args):
                                                     trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                     non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
-                        nmt_loss = label_smoothing_loss(predicted, trg_sequence_gold, 
+                        seq_loss = label_smoothing_loss(predicted, trg_sequence_gold, 
                                                         trg_pad_idx=model.pad_idx,
                                                         smoothing_eps=args.label_smoothing_eps)
-                        total_loss = nmt_loss + dist_loss
+                        total_loss = seq_loss + dist_loss
 
                     scaler.scale(total_loss).backward()
                     if args.clip_grad_norm > 0:
@@ -243,7 +230,7 @@ def seq2seq_training(args):
                         acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_seq_loss:%03.2f | train_latent_loss:%03.2f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
-                            nmt_loss.item(), dist_loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
+                            seq_loss.item(), dist_loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
                             (time() - start_time_e) / 60)
                         write_log(logger, iter_log)
                         freq = 0
@@ -252,13 +239,13 @@ def seq2seq_training(args):
                     if args.use_tensorboard:
                         acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
                         
-                        writer.add_scalar('TRAIN/Total_Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('TRAIN/NMT_Loss', nmt_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('TRAIN/Latent_Loss', dist_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('USAGE/CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('USAGE/RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
-                        writer.add_scalar('USAGE/GPU_Usage', torch.cuda.memory_allocated(device=device), (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
+                        tb_writer.add_scalar('TRAIN/Total_Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('TRAIN/SEQ_Loss', seq_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('TRAIN/Latent_Loss', dist_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('USAGE/CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('USAGE/RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('USAGE/GPU_Usage', torch.cuda.memory_allocated(device=device), (epoch-1) * len(dataloader_dict['train']) + i) # MB Size
 
                 # Validation
                 if phase == 'valid':
@@ -266,8 +253,8 @@ def seq2seq_training(args):
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        nmt_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
-                        total_loss = nmt_loss + dist_loss
+                        seq_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
+                        total_loss = seq_loss + dist_loss
                     val_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
 
@@ -282,12 +269,9 @@ def seq2seq_training(args):
                 val_acc /= len(dataloader_dict[phase])
                 write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
-                save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
-                if not os.path.exists(save_path):
-                    os.mkdir(save_path)
-                save_file_name = os.path.join(save_path, 
-                                              f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
-                if val_acc > best_val_acc:
+
+                save_file_name = model_save_name(args)
+                if val_loss < best_val_loss:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({
                         'epoch': epoch,
@@ -296,18 +280,18 @@ def seq2seq_training(args):
                         'scheduler': scheduler.state_dict(),
                         'scaler': scaler.state_dict()
                     }, save_file_name)
-                    best_val_acc = val_acc
+                    best_val_loss = val_loss
                     best_epoch = epoch
                 else:
-                    else_log = f'Still {best_epoch} epoch accuracy({round(best_val_acc.item()*100, 2)})% is better...'
+                    else_log = f'Still {best_epoch} epoch Loss({round(best_val_loss.item(), 2)}) is better...'
                     write_log(logger, else_log)
 
                 if args.use_tensorboard:
-                    writer.add_scalar('VALID/Total_Loss', val_loss, epoch)
-                    writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
+                    tb_writer.add_scalar('VALID/Total_Loss', val_loss, epoch)
+                    tb_writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
 
     # 3) Print results
-    print(f'Best Epoch: {best_epoch}')
-    print(f'Best Accuracy: {round(best_val_acc.item(), 2)}')
+    write_log(logger, f'Best Epoch: {best_epoch}')
+    write_log(logger, f'Best Loss: {round(best_val_loss.item(), 2)}')
     if args.use_tensorboard:
-        writer.add_text('VALID/Best Epoch&Accuracy', f'Best Epoch: {best_epoch}\nBest Accuracy: {round(best_val_acc.item(), 4)}')
+        tb_writer.add_text('VALID/Best Epoch&Accuracy', f'Best Epoch: {best_epoch}\nBest Accuracy: {round(best_val_acc.item(), 4)}')
