@@ -3,10 +3,11 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 # Import custom modules
+from .encoder_decoder import latent_encoder_module, latent_decoder_module
 from .loss import GaussianKLLoss, MaximumMeanDiscrepancyLoss
 
 class Latent_module(nn.Module):
-    def __init__(self, d_model, d_latent, variational_mode, z_var, device):
+    def __init__(self, d_model, d_latent, variational_mode, z_var, token_length, device):
 
         super(Latent_module, self).__init__()
 
@@ -15,24 +16,21 @@ class Latent_module(nn.Module):
         self.loss_lambda = 1
         self.device = device
         
-        if self.variational_mode < 5:
+        if self.variational_mode in [1,2]:
             self.context_to_mu = nn.Linear(d_model, d_latent)
             self.context_to_logvar = nn.Linear(d_model, d_latent)
             self.z_to_context = nn.Linear(d_latent, d_model)
 
             self.kl_criterion = GaussianKLLoss()
 
-        if self.variational_mode in [5,6]:
+        if self.variational_mode in [3, 4]:
             self.context_to_latent = nn.Linear(d_model, d_latent)
             self.latent_to_context = nn.Linear(d_latent, d_model)
 
             self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
 
-        if self.variational_mode >= 7:
-            self.latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=d_latent, kernel_size=3, stride=1, bias=True),
-                nn.ReLU(inplace=False)
-            )
+        if self.variational_mode == 5:
+            self.latent_encoder = latent_encoder_module(d_model, d_latent, token_length, mode=1)
 
             self.context_to_mu = nn.Linear(d_latent, d_latent)
             self.context_to_logvar = nn.Linear(d_latent, d_latent)
@@ -166,10 +164,10 @@ class Latent_module(nn.Module):
             trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
             trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
 
-            mu1 = src_mu.view(batch_size, -1)
-            logvar1 = src_logvar.view(batch_size, -1)
-            mu2 = trg_mu.view(batch_size, -1)
-            logvar2 = trg_logvar.view(batch_size, -1)
+            mu1 = src_mu.view(batch_size, -1) # (batch, token * d_latent)
+            logvar1 = src_logvar.view(batch_size, -1) # (batch, token * d_latent)
+            mu2 = trg_mu.view(batch_size, -1) # (batch, token * d_latent)
+            logvar2 = trg_logvar.view(batch_size, -1) # (batch, token * d_latent)
 
             numerator = logvar1.exp() + torch.pow(mu1 - mu2, 2)
             fraction = torch.div(numerator, (logvar2.exp()))
@@ -187,52 +185,10 @@ class Latent_module(nn.Module):
             encoder_out_total = torch.add(encoder_out_src, resize_z)
 
     #===================================#
-    #===========SRC -> Only Z===========#
-    #===================================#
-
-        if self.variational_mode == 3:
-            # Source sentence latent mapping
-            src_mu = self.context_to_mu(encoder_out_src) # (token, batch, d_latent)
-            src_logvar = self.context_to_logvar(encoder_out_src) # (token, batch, d_latent)
-
-            # KL Divergence
-            mu = src_mu.view(encoder_out_src.size(1), -1)
-            logvar = src_logvar.view(encoder_out_src.size(1), -1)
-            dist_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-
-            # Re-parameterization
-            std = src_logvar.mul(0.5).exp_()
-            eps = Variable(std.data.new(std.size()).normal_())
-            z = eps.mul(std).add_(src_mu)
-
-            encoder_out_total = self.z_to_context(z)
-
-    #===================================#
-    #=========SRC|TRG -> Only Z=========#
-    #===================================#
-
-        if self.variational_mode == 4:
-            # Source sentence latent mapping
-            src_mu = self.context_to_mu(encoder_out_src) # (token, batch, d_latent)
-            src_logvar = self.context_to_logvar(encoder_out_src) # (token, batch, d_latent)
-
-            trg_mu = self.context_to_mu(encoder_out_trg) # (token, batch, d_latent)
-            trg_logvar = self.context_to_logvar(encoder_out_trg) # (token, batch, d_latent)
-
-            dist_loss = self.kl_criterion(src_mu, src_logvar, trg_mu, trg_logvar) # 
-
-            # Re-parameterization
-            std = src_logvar.mul(0.5).exp_()
-            eps = Variable(std.data.new(std.size()).normal_())
-            z = eps.mul(std).add_(src_mu)
-
-            encoder_out_total = self.z_to_context(z)
-
-    #===================================#
     #=============WAE(mean)=============#
     #===================================#
 
-        if self.variational_mode == 5:
+        if self.variational_mode == 3:
             # Source sentence latent mapping
             src_latent = self.context_to_latent(encoder_out_src) # (token, batch, d_latent)
             trg_latent = self.context_to_latent(encoder_out_trg) # (token, batch, d_latent)
@@ -249,7 +205,7 @@ class Latent_module(nn.Module):
     #=============WAE(view)=============#
     #===================================#
 
-        if self.variational_mode == 6:
+        if self.variational_mode == 4:
 
             batch_size = encoder_out_src.size(1)
             # Source sentence latent mapping
@@ -268,7 +224,7 @@ class Latent_module(nn.Module):
     #==============CNN+VAE==============#
     #===================================#
 
-        if self.variational_mode == 7:
+        if self.variational_mode == 5:
             
             encoder_out_src = encoder_out_src.permute(1, 2, 0) # (batch, d_model, token)
             encoder_out_trg = encoder_out_trg.permute(1, 2, 0) # (batch, d_model, token)
@@ -276,9 +232,6 @@ class Latent_module(nn.Module):
             # Encoding
             src_latent = self.latent_encoder(encoder_out_src) # (batch, d_latent, token-k)
             trg_latent = self.latent_encoder(encoder_out_trg) # (batch, d_latent, token-k)
-
-            src_latent, _ = torch.max(src_latent, dim=2) # (batch, d_latent)
-            trg_latent, _ = torch.max(trg_latent, dim=2) # (batch, d_latent)
 
             src_mu = self.context_to_mu(src_latent) # (batch, d_latent)
             src_logvar = self.context_to_logvar(src_latent) # (batch, d_latent)
@@ -308,7 +261,7 @@ class Latent_module(nn.Module):
     #==============CNN+WAE==============#
     #===================================#
 
-        if self.variational_mode == 8:
+        if self.variational_mode == 6:
 
             encoder_out_src = encoder_out_src.permute(1, 2, 0) # (batch, d_model, token)
             encoder_out_trg = encoder_out_trg.permute(1, 2, 0) # (batch, d_model, token)
