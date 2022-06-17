@@ -218,7 +218,7 @@ class Ralamb(Optimizer):
                 # more conservative since it's an approximated value
                 if N_sma >= 5:
                     denom = exp_avg_sq.sqrt().add_(group['eps'])
-                    p_data_fp32.addcdiv_(-radam_step * trust_ratio, exp_avg, denom)
+                    p_data_fp32.addcdiv_(exp_avg, denom, value=-radam_step * trust_ratio)
                 else:
                     p_data_fp32.add_(exp_avg, alpha=-radam_step * trust_ratio)
 

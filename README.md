@@ -78,6 +78,13 @@ python main.py --training --d_model=768 --d_embedding=256 --n_head=16 \
 --num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
 ```
 
+#### Parallel Options
+<img src="./figure/Parallel_Transformer.png">
+On the left is the Transformer architecture proposed in the previous paper. However, the architecture we propose is in which encoder and decoder are configured in parallel.
+
+#### Beam Search
+
+
 ### Bart
 Implementation of the Bart model in "[BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension](https://arxiv.org/pdf/1910.13461.pdf)" (Mike Lewis, Yinhan Liu, Naman Goyal, Marjan Ghazvininejad, Abdelrahman Mohamed, Omer Levy, Ves Stoyanov and Luke Zettlemoyer, ACL 2020).
 
