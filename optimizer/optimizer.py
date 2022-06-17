@@ -220,7 +220,7 @@ class Ralamb(Optimizer):
                     denom = exp_avg_sq.sqrt().add_(group['eps'])
                     p_data_fp32.addcdiv_(-radam_step * trust_ratio, exp_avg, denom)
                 else:
-                    p_data_fp32.add_(-radam_step * trust_ratio, exp_avg)
+                    p_data_fp32.add_(exp_avg, alpha=-radam_step * trust_ratio)
 
                 p.data.copy_(p_data_fp32)
 
