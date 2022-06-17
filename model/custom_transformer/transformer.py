@@ -68,7 +68,9 @@ class Transformer(nn.Module):
 
         # Variational model setting
         self.variational_mode = variational_mode
-        self.latent_module = Latent_module(d_model, d_latent, variational_mode, z_var, device=self.device)
+        self.latent_module = Latent_module(d_model=d_model, d_latent=d_latent, 
+                                           variational_mode=variational_mode, z_var=z_var, token_length=src_max_len,
+                                           device=self.device)
         
         # Weight sharing
         self.x_logit_scale = 1.

@@ -21,7 +21,7 @@ from model.custom_plm.T5 import custom_T5
 from model.custom_plm.bart import custom_Bart
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
-from task.training.training_utils import label_smoothing_loss, model_save_name
+from task.utils import label_smoothing_loss, model_save_name
 
 def seq2seq_training(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

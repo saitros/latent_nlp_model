@@ -2,18 +2,14 @@
 import os
 import gc
 import h5py
-import time
 import pickle
 import logging
+import pandas as pd
 import sentencepiece as spm
 from tqdm import tqdm
-from collections import defaultdict
 from nltk.translate.bleu_score import corpus_bleu
-import pandas as pd
 # Import PyTorch
 import torch
-from torch import nn
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 # Import Huggingface
@@ -24,6 +20,7 @@ from model.custom_transformer.transformer import Transformer
 from model.custom_plm.T5 import custom_T5
 from model.custom_plm.bart import custom_Bart
 from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
+from task.utils import model_save_name, results_save_name
 
 def seq2seq_testing(args):
 
@@ -101,17 +98,14 @@ def seq2seq_testing(args):
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
                             variational_mode=args.variational_mode, z_var=args.z_var,
                             parallel=args.parallel, device=device)
-        tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     elif args.model_type == 'T5':
         model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
                         variational_mode=args.variational_mode, z_var=args.z_var,
                         decoder_full_model=True)
-        tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
                             variational_mode=args.variational_mode, z_var=args.z_var,
                             d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
-        tgt_subsqeunt_mask = None
     # elif args.model_type == 'Bert':
     #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
     #                       variational_mode=args.variational_mode, 
@@ -119,10 +113,7 @@ def seq2seq_testing(args):
     model = model.to(device)
 
     # lode model
-    model = model.to(device)
-    save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
-    save_file_name = os.path.join(save_path, 
-                                    f'checkpoint_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.pth.tar')
+    save_file_name = model_save_name(args)
     model.load_state_dict(torch.load(save_file_name)['model'])
     model = model.eval()
     write_log(logger, f'Loaded model from {save_file_name}!')
@@ -156,7 +147,10 @@ def seq2seq_testing(args):
     predicted_tokens = []
     target_tokens = []
 
-    # Beam search
+    #===================================#
+    #============Inference==============#
+    #===================================#
+
     with torch.no_grad():
         for i, batch_iter in enumerate(tqdm(test_dataloader, bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
 
@@ -171,22 +165,22 @@ def seq2seq_testing(args):
             trg_sequence = trg_sequence.to(device, non_blocking=True)
             trg_att = trg_att.to(device, non_blocking=True)
 
-            predicted = model.generate(src_sequence, src_att, beam_size=5, beam_alpha=0.7, repetition_penalty=0.7, device=device)
+            predicted = model.generate(src_sequence, src_att, 
+                                       beam_size=args.beam_size, beam_alpha=args.beam_alpha, 
+                                       repetition_penalty=args.repetition_penalty, device=device)
 
             for j, predicted_sequence in enumerate(predicted):
+                src_seq_list = src_sequence.cpu().tolist()
+                trg_seq_list = trg_sequence.cpu().tolist()
+
                 if args.tokenizer == 'spm':
-                    source = spm_model.DecodeIds(src_sequence.cpu().tolist()[j])
+                    source = spm_model.DecodeIds(src_seq_list[j])
                     predicted = spm_model.DecodeIds(predicted_sequence)
-                    target = spm_model.DecodeIds(trg_sequence.cpu().tolist()[j])
-
+                    target = spm_model.DecodeIds(trg_seq_list[j])
                 else:
-                    source = tokenizer.decode(src_sequence.cpu().tolist()[j], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+                    source = tokenizer.decode(src_seq_list[j], skip_special_tokens=True, clean_up_tokenization_spaces=True)
                     predicted = tokenizer.decode(predicted_sequence, skip_special_tokens=False, clean_up_tokenization_spaces=True)
-                    target = tokenizer.decode(trg_sequence.cpu().tolist()[j], skip_special_tokens=True, clean_up_tokenization_spaces=True)
-
-                print("[Source]", source, sep='\n', end='\n')
-                print("[Predicted]", predicted, sep='\n', end='\n')
-                print("[Target]", target, sep='\n', end='\n\n')
+                    target = tokenizer.decode(trg_seq_list[j], skip_special_tokens=True, clean_up_tokenization_spaces=True)
 
                 if args.use_tensorboard:
                     writer.add_text('TEST/Source', source, (i+1)*(j+1))
@@ -212,15 +206,18 @@ def seq2seq_testing(args):
     write_log(logger, f'[TEST] Final BLEU score: {final_bleu_score}')
     if args.use_tensorboard:
         writer.add_text('TEST/Final BLEU', str(final_bleu_score))
+
+    #===================================#
+    #=============Saving================#
+    #===================================#
     
     # Save sentences to csv file
-    result_path = os.path.join(args.result_path, args.task, args.data_name, args.tokenizer)
-    save_file_name = os.path.join(result_path, 
-                            f'TEST_result_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.csv')
-    
-    if not os.path.exists(result_path):
-        os.makedirs(result_path)
+    result_path = results_save_name(args)
     
     # Make pandas dataframe with source_sentences, predicted_sentences, target_sentences
-    df = pd.DataFrame({'source': source_sentences, 'predicted': predicted_sentences, 'target': target_sentences})
-    df.to_csv(save_file_name, index=False)
+    df = pd.DataFrame(
+        {'source': source_sentences, 
+        'predicted': predicted_sentences, 
+        'target': target_sentences}
+    )
+    df.to_csv(result_path, index=False)

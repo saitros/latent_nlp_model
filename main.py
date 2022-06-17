@@ -56,9 +56,9 @@ if __name__=='__main__':
                         help='Data name; Default is WMT2016_Multimodal')
     parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
                         help='; Default is 3.0.0')
-    parser.add_argument('--model_save_path', default='/HDD/juhwan/model_checkpoint/latent', type=str,
+    parser.add_argument('--model_save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
-    parser.add_argument('--result_path', default='./results', type=str,
+    parser.add_argument('--result_path', default='/HDD/kyohoon/results/latent', type=str,
                         help='Results file path')
     # Preprocessing setting
     parser.add_argument('--tokenizer', default='spm', choices=[
@@ -70,10 +70,10 @@ if __name__=='__main__':
                         help='Source language chracter coverage ratio; Default is 1.0')
     parser.add_argument('--trg_character_coverage', default=1.0, type=float,
                         help='Target language chracter coverage ratio; Default is 1.0')
-    parser.add_argument('--src_vocab_size', default=3600, type=int,
-                        help='Source text vocabulary size; Default is 3600')
-    parser.add_argument('--trg_vocab_size', default=3600, type=int,
-                        help='Source text vocabulary size; Default is 3600')
+    parser.add_argument('--src_vocab_size', default=24000, type=int,
+                        help='Source text vocabulary size; Default is 24000')
+    parser.add_argument('--trg_vocab_size', default=24000, type=int,
+                        help='Source text vocabulary size; Default is 24000')
     parser.add_argument('--pad_id', default=0, type=int,
                         help='Padding token index; Default is 0')
     parser.add_argument('--unk_id', default=3, type=int,
@@ -85,11 +85,9 @@ if __name__=='__main__':
     parser.add_argument('--src_trg_reverse', action='store_true')
     parser.add_argument('--with_eda', action='store_true')
     parser.add_argument('--src_trg_identical', default=False, type=str2bool,
-                        help='')
+                        help='Use source and target tokenizer same; Default is False')
     # Model setting
     # 0) Model selection
-    parser.add_argument('--model_name', default='translator_basic', type=str,
-                        help='Model name; Default is translator_basic')
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
         'custom_transformer', 'bart', 'T5', 'bert'
             ], help='Model type selection; Default is custom_transformer')
@@ -118,8 +116,8 @@ if __name__=='__main__':
                         help='Weight sharing between encoder embedding and decoder embedding; Default is False')
     parser.add_argument('--parallel', default=False, type=str2bool,
                         help='Transformer Encoder and Decoder parallel mode; Default is False')
-    parser.add_argument('--num_common_layer', default=6, type=int, 
-                        help="Number of common layers; Default is 6")
+    parser.add_argument('--num_common_layer', default=8, type=int, 
+                        help="Number of common layers; Default is 8")
     # 2) Variational model
     parser.add_argument('--variational_mode', default=0, type=int,
                         help='Variational transformer mode; Default is False')
@@ -128,8 +126,8 @@ if __name__=='__main__':
     # Optimizer & LR_Scheduler setting
     optim_list = ['AdamW', 'Adam', 'SGD', 'Ralamb']
     scheduler_list = ['constant', 'warmup', 'reduce_train', 'reduce_valid', 'lambda']
-    parser.add_argument('--optimizer', default='AdamW', type=str, choices=optim_list,
-                        help="Choose optimizer setting in 'AdamW', 'Adam', 'SGD'; Default is AdamW")
+    parser.add_argument('--optimizer', default='Ralamb', type=str, choices=optim_list,
+                        help="Choose optimizer setting in 'AdamW', 'Adam', 'SGD', 'Ralamb'; Default is Ralamb")
     parser.add_argument('--scheduler', default='warmup', type=str, choices=scheduler_list,
                         help="Choose optimizer setting in 'constant', 'warmup', 'reduce'; Default is warmup")
     parser.add_argument('--n_warmup_epochs', default=2, type=float, 
