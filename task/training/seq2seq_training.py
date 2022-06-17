@@ -294,4 +294,4 @@ def seq2seq_training(args):
     write_log(logger, f'Best Epoch: {best_epoch}')
     write_log(logger, f'Best Loss: {round(best_val_loss.item(), 2)}')
     if args.use_tensorboard:
-        tb_writer.add_text('VALID/Best Epoch&Accuracy', f'Best Epoch: {best_epoch}\nBest Accuracy: {round(best_val_acc.item(), 4)}')
+        tb_writer.add_text('VALID/Best Epoch&Accuracy', f'Best Epoch: {best_epoch}\nBest Accuracy: {round(best_val_loss.item(), 4)}')
