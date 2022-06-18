@@ -22,8 +22,8 @@ This code is written in Python. Dependencies include
 * CNN & Daily Mail **News Summarization** (--task=summarization --data_name=cnn_dailymail)
 #### Classification
 * IMDB **Sentiment Analysis** (--task=classification --data_name=IMDB)
-* NSMC (Coming soon...)
-* Korean Hate Speech (Coming soon...)
+* NSMC **Sentiment Analysis** (Coming soon...)
+* Korean Hate Speech **Toxic Classification** (Coming soon...)
 
 ## Preprocessing
 
@@ -82,7 +82,20 @@ python main.py --training --d_model=768 --d_embedding=256 --n_head=16 \
 <img src="./figure/Parallel_Transformer.png">
 On the left is the Transformer architecture proposed in the previous paper. However, the architecture we propose is in which encoder and decoder are configured in parallel.
 
+```
+python main.py --training --parallel=True
+```
+
 #### Beam Search
+
+Available options are
+* Beam size (--beam_size)
+* Length normalization (--beam_alpha)
+* Penelize word that already generated (--repetition_penalty)
+
+```
+python main.py --testing --beam_size=5 --beam_alpha=0.7 --repetition_penalty=0.7
+```
 
 
 ### Bart
