@@ -24,7 +24,7 @@ from task.utils import model_save_name, results_save_name
 
 def seq2seq_testing(args):
 
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
 
     #===================================#
     #==============Logging==============#
