@@ -11,7 +11,7 @@ from ..latent_module.latent import Latent_module
 
 class custom_Bart(nn.Module):
     def __init__(self, isPreTrain, PreTrainMode,
-                 variational_mode, d_latent, z_var,
+                 variational_mode, d_latent, z_var, token_length, device,
                  emb_src_trg_weight_sharing: bool =True):
         super().__init__()
 
@@ -34,7 +34,11 @@ class custom_Bart(nn.Module):
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
         self.model_config = BartConfig.from_pretrained(f'facebook/bart-{self.PreTrainMode}')
         self.model_config.use_cache = False
+
+        # Token index
         self.pad_idx = self.model_config.pad_token_id
+        self.bos_idx = self.model_config.bos_token_id
+        self.eos_idx = self.model_config.eos_token_id
 
         if self.isPreTrain:
             self.model = BartModel.from_pretrained(f'facebook/bart-{self.PreTrainMode}')
@@ -52,7 +56,8 @@ class custom_Bart(nn.Module):
 
         # Variational model setting
         self.variational_mode = variational_mode
-        self.latent_module = Latent_module(self.d_hidden, d_latent, variational_mode, z_var)
+        self.latent_module = Latent_module(self.d_hidden, d_latent, variational_mode, z_var,
+                                           token_length, device)
 
     def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask, 
                 non_pad_position=None, tgt_subsqeunt_mask=None):
@@ -103,13 +108,11 @@ class custom_Bart(nn.Module):
         # Decoder
         if self.emb_src_trg_weight_sharing:
             model_out = self.decoder_model(inputs_embeds = trg_input_embeds, 
-                                           attention_mask = trg_attention_mask,
                                            encoder_hidden_states = src_encoder_out,
                                            encoder_attention_mask = src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
         else:
             model_out = self.decoder_model(input_ids = trg_input_ids, 
-                                           attention_mask = trg_attention_mask,
                                            encoder_hidden_states = src_encoder_out,
                                            encoder_attention_mask = src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])

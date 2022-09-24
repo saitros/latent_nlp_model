@@ -116,8 +116,9 @@ def seq2seq_training(args):
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
-                            variational_mode=args.variational_mode, z_var=args.z_var,
-                            d_latent=args.d_latent, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
+                            variational_mode=args.variational_mode, d_latent=args.d_latent,
+                            z_var=args.z_var, token_length=args.trg_max_len,
+                            device=device, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
     model = model.to(device)
 
