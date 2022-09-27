@@ -53,6 +53,8 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
         )
         processed_sequences[phase]['input_ids'] = encoded_dict['input_ids']
         processed_sequences[phase]['attention_mask'] = encoded_dict['attention_mask']
+        if args.tokenizer == 'bert':
+            processed_sequences[phase]['token_type_ids'] = encoded_dict['token_type_ids']
 
     # BART's decoder input id need to start with 'model.config.decoder_start_token_id'
     if args.tokenizer == 'bart' and domain == 'trg':
