@@ -70,6 +70,10 @@ if __name__=='__main__':
                         help='Source language chracter coverage ratio; Default is 1.0')
     parser.add_argument('--trg_character_coverage', default=1.0, type=float,
                         help='Target language chracter coverage ratio; Default is 1.0')
+    parser.add_argument('--src_max_len', default=300, type=int, 
+                        help="Source sentences's maximum length; Default is 300")
+    parser.add_argument('--trg_max_len', default=300, type=int, 
+                        help="Target sentences's maximum length; Default is 300")
     parser.add_argument('--src_vocab_size', default=24000, type=int,
                         help='Source text vocabulary size; Default is 24000')
     parser.add_argument('--trg_vocab_size', default=24000, type=int,
@@ -138,10 +142,6 @@ if __name__=='__main__':
     parser.add_argument('--z_var', default=2, type=int)
     parser.add_argument('--min_len', default=4, type=int, 
                         help="Sentences's minimum length; Default is 4")
-    parser.add_argument('--src_max_len', default=300, type=int, 
-                        help="Source sentences's maximum length; Default is 300")
-    parser.add_argument('--trg_max_len', default=300, type=int, 
-                        help="Target sentences's maximum length; Default is 300")
     parser.add_argument('--num_epochs', default=100, type=int, 
                         help='Training epochs; Default is 100')
     parser.add_argument('--num_workers', default=8, type=int, 
