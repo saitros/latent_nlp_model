@@ -44,9 +44,12 @@ class Latent_module(nn.Module):
 
         # CNN Encoder & Decoder
         if self.cnn_encoder:
-            self.src_latent_encoder = full_cnn_latent_encoder(d_model, d_latent)
+            self.latent_encoder = full_cnn_latent_encoder(d_model, d_latent)
+            if self.variational_model == 'vae':
+                self.latent_to_mu = nn.Linear(d_latent, d_latent)
+                self.latent_to_logvar = nn.Linear(d_latent, d_latent)
         if self.cnn_decoder:
-            self.src_latent_decoder = full_cnn_latent_decoder(d_model, d_latent)
+            self.latent_decoder = full_cnn_latent_decoder(d_model, d_latent)
         # cnn 일반버젼 코딩도 진행해야함
 
     def forward(self, encoder_out_src, encoder_out_trg=None):
@@ -66,16 +69,33 @@ class Latent_module(nn.Module):
 
             # 1-1. Model dimension to latent dimenseion with CNN encoder
             if self.cnn_encoder:
+
+                # Source encoding
                 if self.src_max_len == 100:
-                    src_latent = nn.Sequential(*list(self.src_latent_encoder.children()))[2:-2](encoder_out_src) # [batch, d_latent]
+                    src_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:-2](encoder_out_src) # [batch, d_latent]
                 elif self.src_max_len == 300:
-                    src_latent = nn.Sequential(*list(self.src_latent_encoder.children()))[2:](encoder_out_src) # [batch, d_latent]
+                    src_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:](encoder_out_src) # [batch, d_latent]
                 elif self.src_max_len == 768:
                     src_latent = self.latent_encoder(encoder_out_src) # [batch, d_latent]
                 else:
                     raise Exception('Sorry, Now only 100, 300, 768 length is available')
+
+                src_mu = self.latent_to_mu(src_latent)
+                src_logvar = self.latent_to_logvar(src_latent)
+
+                # Target encoding
                 if self.variational_with_target:
-                    trg_latent = self.latent_encoder(encoder_out_trg) # [batch, d_latent]
+                    if self.trg_max_len == 100:
+                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:-2](encoder_out_src) # [batch, d_latent]
+                    elif self.trg_max_len == 300:
+                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:](encoder_out_src) # [batch, d_latent]
+                    elif self.trg_max_len == 768:
+                        trg_latent = self.latent_encoder(encoder_out_trg) # [batch, d_latent]
+                    else:
+                        raise Exception('Sorry, Now only 100, 300, 768 length is available')
+
+                    trg_mu = self.latent_to_mu(trg_latent)
+                    trg_logvar = self.latent_to_logvar(trg_latent)
 
             # 1-2. Model dimension to latent dimenseion with 'context_to_mu'
             else:
@@ -119,9 +139,12 @@ class Latent_module(nn.Module):
             z = eps.mul(std).add_(src_mu) # [batch, d_latent]
 
             # 5-1. Decoding by cnn
-            resize_z = self.src_latent_encoder
+            if self.cnn_decoder:
+                resize_z = self.latent_decoder(z) # [batch, seq_len, d_model]
             # 5-2. Decoding by 'z_to_context'
-            resize_z = self.z_to_context(z) # [batch, d_model]
+            else:
+                resize_z = self.z_to_context(z) # [batch, d_model]
+                resize_z = resize_z.unsqueeze(1).repeat(1, src_max_len, 1)
 
             # 6. Add latent variable or use only latent variable
             if self.latent_add_encoder_out:
@@ -141,11 +164,37 @@ class Latent_module(nn.Module):
         """
 
         if self.variational_model == 'wae':
-            # 1. Model dimension to latent dimenseion
-            src_latent = self.context_to_latent(encoder_out_src) # [seq_len, batch, d_latent]
 
-            if self.variational_with_target:
-                trg_latent = self.context_to_latent(encoder_out_trg) # [seq_len, batch, d_latent]
+            # 1-1. Model dimension to latent dimenseion with CNN encoder
+            if self.cnn_encoder:
+
+                # Source encoding
+                if self.src_max_len == 100:
+                    src_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:-2](encoder_out_src) # [batch, d_latent]
+                elif self.src_max_len == 300:
+                    src_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:](encoder_out_src) # [batch, d_latent]
+                elif self.src_max_len == 768:
+                    src_latent = self.latent_encoder(encoder_out_src) # [batch, d_latent]
+                else:
+                    raise Exception('Sorry, Now only 100, 300, 768 length is available')
+
+                # Target encoding
+                if self.variational_with_target:
+                    if self.src_max_len == 100:
+                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:-2](encoder_out_src) # [batch, d_latent]
+                    elif self.src_max_len == 300:
+                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:](encoder_out_src) # [batch, d_latent]
+                    elif self.src_max_len == 768:
+                        trg_latent = self.latent_encoder(encoder_out_trg) # [batch, d_latent]
+                    else:
+                        raise Exception('Sorry, Now only 100, 300, 768 length is available')
+
+            # 1-2. Model dimension to latent dimenseion
+            else:
+                src_latent = self.context_to_latent(encoder_out_src) # [seq_len, batch, d_latent]
+
+                if self.variational_with_target:
+                    trg_latent = self.context_to_latent(encoder_out_trg) # [seq_len, batch, d_latent]
 
             # 2. Sequence token processing
             if self.variational_token_processing == 'average':
@@ -160,10 +209,18 @@ class Latent_module(nn.Module):
                     trg_latent = trg_latent.view(batch_size, -1)
 
             # 3. Calculate Maximum-mean discrepancy
-            dist_loss = self.mmd_criterion(src_latent, trg_latent, self.z_var)
+            if self.variational_with_target:
+                dist_loss = self.mmd_criterion(src_latent, trg_latent, self.z_var)
+            else:
+                sample_z = math.sqrt(self.z_var) * Variable(src_latent.data.new(src_latent.size()).normal_())
+                dist_loss = self.mmd_criterion(src_latent, sample_z, self.z_var)
 
-            # 4. Decoding with 'latent_to_context'
-            src_latent = self.latent_to_context(src_latent)
+            # 4-1. Decoding by cnn
+            if self.cnn_decoder:
+                src_latent = self.latent_decoder(src_latent) # [batch, seq_len, d_model]
+            # 4-2. Decoding by 'z_to_context'
+            else:
+                src_latent = self.latent_to_context(src_latent)
 
             # 5. Add latent variable or use only latent variable
             if self.latent_add_encoder_out:
