@@ -9,142 +9,45 @@ from .loss import GaussianKLLoss, MaximumMeanDiscrepancyLoss
 class Latent_module(nn.Module):
     def __init__(self, d_model: int = 512, d_latent: int = 256, variational_model: str = 'vae', 
                  variational_token_processing: str = 'average', variational_with_target: bool = False,
-                 latent_add_encoder_out: bool = True, 
-                 z_var: int = 2, token_length: int = 300, device: torch.device):
+                 cnn_encoder: bool = False, cnn_decoder: bool = False, latent_add_encoder_out: bool = True, 
+                 z_var: int = 2, src_max_len: int = 300, trg_max_len: int = 300, device: torch.device):
 
         super(Latent_module, self).__init__()
 
         self.variational_model = variational_model
         self.variational_token_processing = variational_token_processing
         self.variational_with_target = variational_with_target
+        self.latent_add_encoder_out = latent_add_encoder_out
+        self.cnn_encoder = cnn_encoder
+        self.cnn_decoder = cnn_decoder
+
         self.z_var = z_var
         self.loss_lambda = 1
         self.device = device
         
         # Variational Autoencoder
-        if self.variational_mode in [1,2]:
-            self.context_to_mu = nn.Linear(d_model, d_latent)
-            self.context_to_logvar = nn.Linear(d_model, d_latent)
+        if self.variational_model == 'vae':
+            if self.cnn_encoder:
+                self.context_to_mu = nn.Linear(d_latent, d_latent)
+                self.context_to_logvar = nn.Linear(d_latent, d_latent)
+            else:
+                self.context_to_mu = nn.Linear(d_model, d_latent)
+                self.context_to_logvar = nn.Linear(d_model, d_latent)
             self.z_to_context = nn.Linear(d_latent, d_model)
 
         # Wasserstein Autoencoder
-        if self.variational_mode in [3,4]:
+        if self.variational_model == 'wae':
             self.context_to_latent = nn.Linear(d_model, d_latent)
             self.latent_to_context = nn.Linear(d_latent, d_model)
 
             self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
 
-        # CNN + Variational Autoencoder
-        if self.variational_mode in [5,6]:
-            self.context_to_mu = nn.Linear(d_latent, d_latent)
-            self.context_to_logvar = nn.Linear(d_latent, d_latent)
-
-            if self.variational_mode == 5:
-                self.latent_encoder = full_cnn_latent_encoder(d_model, d_latent, token_length)
-                self.latent_decoder = full_cnn_latent_decoder(d_model, d_latent, token_length)
-            if self.variational_mode == 6:
-                self.latent_encoder = cnn_latent_encoder(d_model, d_latent)
-                self.latent_decoder = cnn_latent_decoder(d_model, d_latent)
-
-        # CNN + Wasserstein Autoencoder
-        if self.variational_mode in [7,8]:
-
-            self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
-
-            if self.variational_mode == 7:
-                self.latent_encoder = full_cnn_latent_encoder(d_model, d_latent, token_length)
-                self.latent_decoder = full_cnn_latent_decoder(d_model, d_latent, token_length)
-            if self.variational_mode == 7:
-                self.latent_encoder = cnn_latent_encoder(d_model, d_latent)
-                self.latent_decoder = cnn_latent_decoder(d_model, d_latent)
-
-        # Gaussian Mixture Variational Autoencoder
-        if self.variational_mode == 9:
-
-            self.context_to_cls = nn.Linear(d_model, 2)
-            self.context_to_mu = nn.Linear(d_model + 2, d_latent)
-            self.context_to_logvar = nn.Linear(d_model + 2, d_latent)
-            
-            self.z_to_context = nn.Linear(d_latent, d_model)
-        
-        # Style & Semantic Divied
-        if self.variational_mode == 9:
-            self.content_latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
-                nn.GELU(),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
-                nn.GELU(),
-                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
-                nn.GELU()
-            )
-
-            self.style_latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
-                nn.GELU(),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
-                nn.GELU(),
-                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
-                nn.GELU()
-            )
-
-            self.content_latent_decoder = nn.Sequential(
-                nn.ConvTranspose1d(in_channels=d_latent, out_channels=d_model, kernel_size=1, stride=1),
-                nn.GELU()
-            )
-            self.style_latent_decoder = nn.Sequential(
-                nn.ConvTranspose1d(in_channels=d_latent, out_channels=d_model, kernel_size=1, stride=1),
-                nn.GELU()
-            )
-
-            # Define Gaussian Mixture
-            mix = torch.distributions.Categorical(torch.ones(2))
-            mean_1 = torch.zeros(d_latent) - 2 # (d_latent)
-            mean_2 = torch.zeros(d_latent) + 2 # (d_latent)
-            sigma_1 = torch.ones(d_latent) * 0.5 # (d_latent)
-            sigma_2 = torch.ones(d_latent) * 0.5 # (d_latent)
-            comp = torch.distributions.Independent(torch.distributions.Normal(torch.stack([mean_1, mean_2]), torch.stack([sigma_1, sigma_2])), 1) # (2, d_latent)
-            self.style_latent_gmm = torch.distributions.MixtureSameFamily(mix, comp) # 
-
-            self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
-            self.content_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
-            self.style_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
-        
-        if self.variational_mode == 10:
-            self.content_latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
-                nn.GELU(),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
-                nn.GELU(),
-                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
-                nn.GELU()
-            )
-
-            self.style_latent_encoder = nn.Sequential(
-                nn.Conv1d(in_channels=d_model, out_channels=512, kernel_size=4, stride=4), # (batch_size, d_model, 60)
-                nn.GELU(),
-                nn.Conv1d(in_channels=512, out_channels=256, kernel_size=3, stride=5), # (batch_size, d_model, 10)
-                nn.GELU(),
-                nn.Conv1d(in_channels=256, out_channels=d_latent, kernel_size=5, stride=1), # (batch_size, d_model, 1)
-                nn.GELU()
-            )
-
-            self.content_latent_to_mu = nn.Linear(d_latent, d_latent)
-            self.content_latent_to_logvar = nn.Linear(d_latent, d_latent)
-            self.style_latent_to_mu = nn.Linear(d_latent, d_latent)
-            self.style_latent_to_logvar = nn.Linear(d_latent, d_latent)
-
-            self.content_latent_decoder = nn.Sequential(
-                nn.ConvTranspose1d(in_channels=d_latent, out_channels=d_model, kernel_size=1, stride=1),
-                nn.GELU()
-            )
-            self.style_latent_decoder = nn.Sequential(
-                nn.ConvTranspose1d(in_channels=d_latent, out_channels=d_model, kernel_size=1, stride=1),
-                nn.GELU()
-            )
-
-            self.kl_criterion = GaussianKLLoss()
-            self.content_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
-            self.style_similiarity_criterion = nn.CosineEmbeddingLoss() #nn.CosineSimilarity()
+        # CNN Encoder & Decoder
+        if self.cnn_encoder:
+            self.src_latent_encoder = full_cnn_latent_encoder(d_model, d_latent)
+        if self.cnn_decoder:
+            self.src_latent_decoder = full_cnn_latent_decoder(d_model, d_latent)
+        # cnn 일반버젼 코딩도 진행해야함
 
     def forward(self, encoder_out_src, encoder_out_trg=None):
 
@@ -159,35 +62,49 @@ class Latent_module(nn.Module):
         4. Re-parameterization trick
         5. Decoding by 'z_to_context'
         """
-
         if self.variational_model = 'vae':
-            # 1. Model dimension to latent dimenseion with 'context_to_mu'
-            src_mu = self.context_to_mu(encoder_out_src) # [seq_len, batch, d_latent]
-            src_logvar = self.context_to_logvar(encoder_out_src) # [seq_len, batch, d_latent]
 
-            if self.variational_with_target:
-                trg_mu = self.context_to_mu(encoder_out_trg) # [seq_len, batch, d_latent]
-                trg_logvar = self.context_to_logvar(encoder_out_trg) # [seq_len, batch, d_latent]
+            # 1-1. Model dimension to latent dimenseion with CNN encoder
+            if self.cnn_encoder:
+                if self.src_max_len == 100:
+                    src_latent = nn.Sequential(*list(self.src_latent_encoder.children()))[2:-2](encoder_out_src) # [batch, d_latent]
+                elif self.src_max_len == 300:
+                    src_latent = nn.Sequential(*list(self.src_latent_encoder.children()))[2:](encoder_out_src) # [batch, d_latent]
+                elif self.src_max_len == 768:
+                    src_latent = self.latent_encoder(encoder_out_src) # [batch, d_latent]
+                else:
+                    raise Exception('Sorry, Now only 100, 300, 768 length is available')
+                if self.variational_with_target:
+                    trg_latent = self.latent_encoder(encoder_out_trg) # [batch, d_latent]
 
-            # 2. Sequence token processing
-            if self.variational_token_processing == 'average':
-                src_mu = src_mu.mean(dim=0) # [batch, d_latent]
-                src_logvar = src_logvar.mean(dim=0) # [batch, d_latent]
+            # 1-2. Model dimension to latent dimenseion with 'context_to_mu'
+            else:
+                src_mu = self.context_to_mu(encoder_out_src) # [seq_len, batch, d_latent]
+                src_logvar = self.context_to_logvar(encoder_out_src) # [seq_len, batch, d_latent]
 
                 if self.variational_with_target:
-                    trg_mu = trg_mu.mean(dim=0) # [batch, d_latent]
-                    trg_logvar = trg_logvar.mean(dim=0) # [batch, d_latent]
+                    trg_mu = self.context_to_mu(encoder_out_trg) # [seq_len, batch, d_latent]
+                    trg_logvar = self.context_to_logvar(encoder_out_trg) # [seq_len, batch, d_latent]
 
-            if self.variational_token_processing == 'view':
-                batch_size = encoder_out_src.size(1)
-                src_mu = src_mu.view(batch_size, -1) # [batch, seq_len * d_latent]
-                src_logvar = src_logvar.view(batch_size, -1) # [batch, seq_len * d_latent]
+                # 2. Sequence token processing
+                if self.variational_token_processing == 'average':
+                    src_mu = src_mu.mean(dim=0) # [batch, d_latent]
+                    src_logvar = src_logvar.mean(dim=0) # [batch, d_latent]
 
-                if self.variational_with_target:
-                    trg_mu = trg_mu.view(batch_size, -1) # [batch, seq_len * d_latent]
-                    trg_logvar = trg_logvar.view(batch_size, -1) # [batch, seq_len * d_latent]
+                    if self.variational_with_target:
+                        trg_mu = trg_mu.mean(dim=0) # [batch, d_latent]
+                        trg_logvar = trg_logvar.mean(dim=0) # [batch, d_latent]
 
-            # 3. Calculate Gaussian KL-Divergenc
+                if self.variational_token_processing == 'view':
+                    batch_size = encoder_out_src.size(1)
+                    src_mu = src_mu.view(batch_size, -1) # [batch, seq_len * d_latent]
+                    src_logvar = src_logvar.view(batch_size, -1) # [batch, seq_len * d_latent]
+
+                    if self.variational_with_target:
+                        trg_mu = trg_mu.view(batch_size, -1) # [batch, seq_len * d_latent]
+                        trg_logvar = trg_logvar.view(batch_size, -1) # [batch, seq_len * d_latent]
+
+            # 3. Calculate Gaussian KL-Divergence
             if self.variational_with_target:
                 numerator = src_logvar.exp() + torch.pow(src_mu - trg_mu, 2)
                 fraction = torch.div(numerator, (trg_logvar.exp()))
@@ -201,7 +118,9 @@ class Latent_module(nn.Module):
             eps = Variable(std.data.new(std.size()).normal_())
             z = eps.mul(std).add_(src_mu) # [batch, d_latent]
 
-            # 5. Decoding by 'z_to_context'
+            # 5-1. Decoding by cnn
+            resize_z = self.src_latent_encoder
+            # 5-2. Decoding by 'z_to_context'
             resize_z = self.z_to_context(z) # [batch, d_model]
 
             # 6. Add latent variable or use only latent variable
@@ -240,75 +159,18 @@ class Latent_module(nn.Module):
                 if self.variational_with_target:
                     trg_latent = trg_latent.view(batch_size, -1)
 
-            # 3. Calculate Maximum-mean discrepancy ==> 여기서부터 할 차례
+            # 3. Calculate Maximum-mean discrepancy
             dist_loss = self.mmd_criterion(src_latent, trg_latent, self.z_var)
 
             # 4. Decoding with 'latent_to_context'
             src_latent = self.latent_to_context(src_latent)
 
-            encoder_out_total = torch.add(encoder_out_src, src_latent)
-
-
-
-    #===================================#
-    #=============WAE(mean)=============#
-    #=========Source vs Target==========#
-    #===================================#
-
-        """
-        1. Model dimension to latent dimenseion with 'context_to_latent' [seq_len, batch, d_latent]
-        2. Average sequence token [batch, d_latent]
-        3. Calculate Maximum-mean discrepancy
-        4. Decoding with 'latent_to_context'
-        """
-
-        if self.variational_mode == 3:
-            # 1. Model dimension to latent dimenseion
-            src_latent = self.context_to_latent(encoder_out_src) # [seq_len, batch, d_latent]
-            trg_latent = self.context_to_latent(encoder_out_trg) # [seq_len, batch, d_latent]
-
-            # 2. Average sequence token
-            src_latent = src_latent.mean(dim=0)
-            trg_latent = trg_latent.mean(dim=0)
-
-            # 3. Calculate Maximum-mean discrepancy 
-            dist_loss = self.mmd_criterion(src_latent, trg_latent, self.z_var)
-
-            # 4. Decoding with 'latent_to_context'
-            src_latent = self.latent_to_context(src_latent)
-
-            encoder_out_total = torch.add(encoder_out_src, src_latent)
-
-    #===================================#
-    #=============WAE(view)=============#
-    #=========Source vs Target==========#
-    #===================================#
-
-        """
-        1. Model dimension to latent dimenseion with 'context_to_latent' [seq_len, batch, d_latent]
-        2. Reshape latent variable [batch, seq_len * d_latent]
-        3. Calculate Maximum-mean discrepancy
-        4. Decoding with 'latent_to_context'
-        """
-
-        if self.variational_mode == 4:
-            # 1. Model dimension to latent dimenseion
-            src_latent = self.context_to_latent(encoder_out_src) # [seq_len, batch, d_latent]
-            trg_latent = self.context_to_latent(encoder_out_trg) # [seq_len, batch, d_latent]
-
-            # 2. Reshape latent variable
-            batch_size = encoder_out_src.size(1)
-            src_latent = src_latent.view(batch_size, -1)
-            trg_latent = trg_latent.view(batch_size, -1)
-
-            # 3. Calculate Maximum-mean discrepancy 
-            dist_loss = self.mmd_criterion(src_latent, trg_latent, self.z_var)
-
-            # 4. Decoding with 'latent_to_context'
-            src_latent = self.latent_to_context(src_latent)
-
-            encoder_out_total = torch.add(encoder_out_src, src_latent)
-
+            # 5. Add latent variable or use only latent variable
+            if self.latent_add_encoder_out:
+                encoder_out_total = torch.add(encoder_out_src, src_latent)
+            else:
+                encoder_out_total = src_latent
+            
     #===================================#
     #==============CNN+VAE==============#
     #===================================#
