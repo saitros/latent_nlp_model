@@ -67,7 +67,7 @@ def seq2seq_training(args):
             train_trg_attention_mask = f.get('train_trg_attention_mask')[:]
             valid_trg_input_ids = f.get('valid_trg_input_ids')[:]
             valid_trg_attention_mask = f.get('valid_trg_attention_mask')[:]
-        elif args.task in ['reconstruction']:
+        elif args.task in ['augmentation']:
             train_trg_input_ids = f.get('train_src_input_ids')[:]
             train_trg_attention_mask = f.get('train_src_attention_mask')[:]
             valid_trg_input_ids = f.get('valid_src_input_ids')[:]
@@ -82,7 +82,7 @@ def seq2seq_training(args):
             trg_word2id = data_['trg_word2id']
             trg_vocab_num = len(trg_word2id)
             trg_language = data_['trg_language']
-        elif args.task in ['reconstruction']:
+        elif args.task in ['augmentation']:
             trg_vocab_num = src_vocab_num
         del data_
 
@@ -95,6 +95,17 @@ def seq2seq_training(args):
 
     # 1) Model initiating
     write_log(logger, 'Instantiating model...')
+
+    if args.variational:
+        variational_mode_dict = dict()
+        variational_mode_dict['variational_model'] = args.variational_model
+        variational_mode_dict['variational_token_processing'] = args.variational_token_processing
+        variational_mode_dict['variational_with_target'] = args.variational_with_target
+        variational_mode_dict['cnn_encoder'] = args.cnn_encoder
+        variational_mode_dict['cnn_decoder'] = args.cnn_decoder
+        variational_mode_dict['latent_add_encoder_out'] = args.latent_add_encoder_out
+        variational_mode_dict['z_var'] = args.z_var
+
     if args.model_type == 'custom_transformer':
         model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
                             pad_idx=args.pad_id, bos_idx=args.bos_id, eos_idx=args.eos_id,
@@ -109,16 +120,16 @@ def seq2seq_training(args):
                             variational_mode=args.variational_mode, z_var=args.z_var,
                             parallel=args.parallel, device=device)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
-    elif args.model_type == 'T5':
-        model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
-                          variational_mode=args.variational_mode, z_var=args.z_var,
-                          decoder_full_model=True)
-        tgt_subsqeunt_mask = None
+    # elif args.model_type == 'T5':
+    #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
+    #                       variational_mode=args.variational_mode, z_var=args.z_var,
+    #                       decoder_full_model=True)
+    #     tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
-        model = custom_Bart(isPreTrain=args.isPreTrain, PreTrainMode='large',
-                            variational_mode=args.variational_mode, d_latent=args.d_latent,
-                            z_var=args.z_var, token_length=args.trg_max_len,
-                            device=device, emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
+        model = custom_Bart(args=args, isPreTrain=args.isPreTrain, variational=args.variational,
+                            variational_mode_dict=variational_mode_dict, d_latent=args.d_latent,
+                            src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                            emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
     model = model.to(device)
 

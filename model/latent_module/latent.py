@@ -10,7 +10,7 @@ class Latent_module(nn.Module):
     def __init__(self, d_model: int = 512, d_latent: int = 256, variational_model: str = 'vae', 
                  variational_token_processing: str = 'average', variational_with_target: bool = False,
                  cnn_encoder: bool = False, cnn_decoder: bool = False, latent_add_encoder_out: bool = True, 
-                 z_var: int = 2, src_max_len: int = 300, trg_max_len: int = 300, device: torch.device):
+                 z_var: int = 2, src_max_len: int = 300, trg_max_len: int = 300):
 
         super(Latent_module, self).__init__()
 
@@ -23,7 +23,6 @@ class Latent_module(nn.Module):
 
         self.z_var = z_var
         self.loss_lambda = 1
-        self.device = device
         
         # Variational Autoencoder
         if self.variational_model == 'vae':
@@ -40,7 +39,7 @@ class Latent_module(nn.Module):
             self.context_to_latent = nn.Linear(d_model, d_latent)
             self.latent_to_context = nn.Linear(d_latent, d_model)
 
-            self.mmd_criterion = MaximumMeanDiscrepancyLoss(device=self.device)
+            self.mmd_criterion = MaximumMeanDiscrepancyLoss()
 
         # CNN Encoder & Decoder
         if self.cnn_encoder:
@@ -302,148 +301,156 @@ class Latent_module(nn.Module):
             
             else:
                 # Source sentence latent mapping
-                src_latent = self.context_to_latent(encoder_out_src) # (token, batch, d_latent)
+                src_latent = self.context_to_latent(encoder_out_src) # [seq_len, batch, d_latent]
 
-                
-            src_latent = self.latent_to_context(src_latent)
+            # 2-1. Decoding by cnn
+            if self.cnn_decoder:
+                src_latent = self.latent_decoder(src_latent) # [seq_len, batch, d_model]
+            # 2-2. Decoding by 'z_to_context'
+            else:
+                src_latent = self.latent_to_context(src_latent) # [seq_len, batch, d_model]
 
-            encoder_out_total = torch.add(encoder_out_src, src_latent)
+            # 3. Add latent variable or use only latent variable
+            if self.latent_add_encoder_out:
+                encoder_out_total = torch.add(encoder_out_src, src_latent)
+            else:
+                encoder_out_total = src_latent
 
-    #===================================#
-    #==============CNN+VAE==============#
-    #===================================#
+    # #===================================#
+    # #==============CNN+VAE==============#
+    # #===================================#
 
-        if self.variational_mode in [5,6]:
+    #     if self.variational_mode in [5,6]:
 
-            src_latent = self.latent_encoder(encoder_out_src) # [batch, d_latent]
-            src_mu = self.context_to_mu(src_latent) # [batch, d_latent]
+    #         src_latent = self.latent_encoder(encoder_out_src) # [batch, d_latent]
+    #         src_mu = self.context_to_mu(src_latent) # [batch, d_latent]
             
-            resize_z = self.latent_decoder(src_mu.unsqueeze(2)) # [seq_len, batch, d_model]
+    #         resize_z = self.latent_decoder(src_mu.unsqueeze(2)) # [seq_len, batch, d_model]
 
-            encoder_out_total = torch.add(encoder_out_src, resize_z)
+    #         encoder_out_total = torch.add(encoder_out_src, resize_z)
             
-    #===================================#
-    #==============CNN+WAE==============#
-    #===================================#
+    # #===================================#
+    # #==============CNN+WAE==============#
+    # #===================================#
 
-        if self.variational_mode == [7,8]:
+    #     if self.variational_mode == [7,8]:
 
-            src_latent = self.latent_encoder(encoder_out_src) # [batch, d_latent]
-            src_latent = self.latent_decoder(src_latent.unsqueeze(2)) # [token, batch, d_model]
+    #         src_latent = self.latent_encoder(encoder_out_src) # [batch, d_latent]
+    #         src_latent = self.latent_decoder(src_latent.unsqueeze(2)) # [token, batch, d_model]
 
-            encoder_out_total = torch.add(encoder_out_src, src_latent)
+    #         encoder_out_total = torch.add(encoder_out_src, src_latent)
 
-    #===================================#
-    #======Gaussian Mixture + VAE=======#
-    #===================================#
+    # #===================================#
+    # #======Gaussian Mixture + VAE=======#
+    # #===================================#
 
-        """
-        Need refactoring
-        """
+    #     """
+    #     Need refactoring
+    #     """
 
-        if self.variational_mode == 9:
+    #     if self.variational_mode == 9:
 
-            # # 1. Style classifiction 
-            # x_to_cls = encoder_out_src.mean(dim=0) # [batch, d_model]
-            # distribution_cls = self.context_to_cls(x_to_cls) # [batch, num_cls]
-            # distribution_cls_cp = distribution_cls.unsqueeze(0).repeat(encoder_out_src.size(0), 1, 1) # [token, batch, num_cls]
+    #         # # 1. Style classifiction 
+    #         # x_to_cls = encoder_out_src.mean(dim=0) # [batch, d_model]
+    #         # distribution_cls = self.context_to_cls(x_to_cls) # [batch, num_cls]
+    #         # distribution_cls_cp = distribution_cls.unsqueeze(0).repeat(encoder_out_src.size(0), 1, 1) # [token, batch, num_cls]
 
-            # # concat
-            # gm_inp = torch.cat((encoder_out_src, distribution_cls_cp), dim=2) # (tokn, batch, d_latent + num_cls)
+    #         # # concat
+    #         # gm_inp = torch.cat((encoder_out_src, distribution_cls_cp), dim=2) # (tokn, batch, d_latent + num_cls)
 
-            # src_mu = self.context_to_mu(gm_inp) # (token, batch, d_latent)
-            # src_logvar = self.context_to_logvar(gm_inp) # (token, batch, d_latent)
+    #         # src_mu = self.context_to_mu(gm_inp) # (token, batch, d_latent)
+    #         # src_logvar = self.context_to_logvar(gm_inp) # (token, batch, d_latent)
 
-            # mu = src_mu.view(gm_inp.size(1), -1) # [batch, seq_len * d_latent]
-            # logvar = src_logvar.view(gm_inp.size(1), -1) # [batch, seq_len * d_latent]
-            # dist_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    #         # mu = src_mu.view(gm_inp.size(1), -1) # [batch, seq_len * d_latent]
+    #         # logvar = src_logvar.view(gm_inp.size(1), -1) # [batch, seq_len * d_latent]
+    #         # dist_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-            # std = src_logvar.mul(0.5).exp_()
-            # eps = Variable(std.data.new(std.size()).normal_())
-            # z = eps.mul(std).add_(src_mu)
+    #         # std = src_logvar.mul(0.5).exp_()
+    #         # eps = Variable(std.data.new(std.size()).normal_())
+    #         # z = eps.mul(std).add_(src_mu)
 
-            # # 5. Decoding with 'z_to_context'
-            # resize_z = self.z_to_context(z) # [batch, d_model]
+    #         # # 5. Decoding with 'z_to_context'
+    #         # resize_z = self.z_to_context(z) # [batch, d_model]
 
-            # encoder_out_total = torch.add(encoder_out_src, resize_z)
+    #         # encoder_out_total = torch.add(encoder_out_src, resize_z)
 
-            raise Exception('Need refactoring...!! Try another variational mode')
+    #         raise Exception('Need refactoring...!! Try another variational mode')
             
-    #===================================#
-    #=========CNN+VAE(GMM&SIM)==========#
-    #===================================#
+    # #===================================#
+    # #=========CNN+VAE(GMM&SIM)==========#
+    # #===================================#
 
-        if self.variational_mode == 10:
-            # Source sentence latent mapping
-            encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
+    #     if self.variational_mode == 10:
+    #         # Source sentence latent mapping
+    #         encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
 
-            # 1-1. Get content latent
-            src_content_latent = self.content_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
-            src_content_latent = src_content_latent.squeeze(2) # (batch_size, d_latent)
+    #         # 1-1. Get content latent
+    #         src_content_latent = self.content_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+    #         src_content_latent = src_content_latent.squeeze(2) # (batch_size, d_latent)
 
-            # 1-2. VAE Process
-            # 1-2-1. Get mu and logvar from src_content_latent and trg_content_latent
-            src_content_mu = self.content_latent_to_mu(src_content_latent) # (batch_size, d_latent)
-            src_content_logvar = self.content_latent_to_logvar(src_content_latent) # (batch_size, d_latent)
+    #         # 1-2. VAE Process
+    #         # 1-2-1. Get mu and logvar from src_content_latent and trg_content_latent
+    #         src_content_mu = self.content_latent_to_mu(src_content_latent) # (batch_size, d_latent)
+    #         src_content_logvar = self.content_latent_to_logvar(src_content_latent) # (batch_size, d_latent)
 
-            # 1-2-2. Reparameterization trick
-            src_content_std = src_content_logvar.mul(0.5).exp_()
-            src_content_eps = torch.randn_like(src_content_std).to(self.device)
-            src_content_z = src_content_eps * src_content_std + src_content_mu # (batch_size, d_latent)
+    #         # 1-2-2. Reparameterization trick
+    #         src_content_std = src_content_logvar.mul(0.5).exp_()
+    #         src_content_eps = torch.randn_like(src_content_std).to(self.device)
+    #         src_content_z = src_content_eps * src_content_std + src_content_mu # (batch_size, d_latent)
 
-            # 2-1. Get style latent
-            src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
-            src_style_latent = src_style_latent.squeeze(2) # (batch_size, d_latent)
+    #         # 2-1. Get style latent
+    #         src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+    #         src_style_latent = src_style_latent.squeeze(2) # (batch_size, d_latent)
 
-            # 2-2. VAE Process
-            # 2-2-1. Get mu and logvar from src_style_latent and trg_style_latent
-            src_style_mu = self.style_latent_to_mu(src_style_latent) # (batch_size, d_latent)
-            src_style_logvar = self.style_latent_to_logvar(src_style_latent) # (batch_size, d_latent)
+    #         # 2-2. VAE Process
+    #         # 2-2-1. Get mu and logvar from src_style_latent and trg_style_latent
+    #         src_style_mu = self.style_latent_to_mu(src_style_latent) # (batch_size, d_latent)
+    #         src_style_logvar = self.style_latent_to_logvar(src_style_latent) # (batch_size, d_latent)
 
-            # 2-2-2. Reparameterization trick
-            src_style_std = src_style_logvar.mul(0.5).exp_()
-            src_style_eps = torch.randn_like(src_style_std).to(self.device)
-            src_style_z = src_style_eps * src_style_std + src_style_mu # (batch_size, d_latent)
+    #         # 2-2-2. Reparameterization trick
+    #         src_style_std = src_style_logvar.mul(0.5).exp_()
+    #         src_style_eps = torch.randn_like(src_style_std).to(self.device)
+    #         src_style_z = src_style_eps * src_style_std + src_style_mu # (batch_size, d_latent)
 
-            # 3-1. Translate each src latent to d_model dimension
-            src_content_latent = self.content_latent_decoder(src_content_z.unsqueeze(2)) # (batch_size, d_model, 1)
-            src_style_latent = self.style_latent_decoder(src_style_z.unsqueeze(2)) # (batch_size, d_model, 1)
+    #         # 3-1. Translate each src latent to d_model dimension
+    #         src_content_latent = self.content_latent_decoder(src_content_z.unsqueeze(2)) # (batch_size, d_model, 1)
+    #         src_style_latent = self.style_latent_decoder(src_style_z.unsqueeze(2)) # (batch_size, d_model, 1)
 
-            # 3-2. add each src latent and repeat
-            src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
-            src_latent = src_latent.repeat(1, 1, encoder_out_src.size(2)) # (batch_size, d_model, seq_len)
+    #         # 3-2. add each src latent and repeat
+    #         src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
+    #         src_latent = src_latent.repeat(1, 1, encoder_out_src.size(2)) # (batch_size, d_model, seq_len)
 
-            # 5. Get output
-            encoder_out_total = torch.add(encoder_out_src, src_latent)
-            encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
+    #         # 5. Get output
+    #         encoder_out_total = torch.add(encoder_out_src, src_latent)
+    #         encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
 
 
-    #===================================#
-    #=========CNN+WAE(GMM&SIM)==========#
-    #===================================#
+    # #===================================#
+    # #=========CNN+WAE(GMM&SIM)==========#
+    # #===================================#
         
-        if self.variational_mode == 11:
-            # Source sentence latent mapping
-            encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
+    #     if self.variational_mode == 11:
+    #         # Source sentence latent mapping
+    #         encoder_out_src = encoder_out_src.permute(1, 2, 0) # From: (seq_len, batch_size, d_model)
 
-            # 1-1. Get content latent
-            src_content_latent = self.content_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
-            src_content_latent = src_content_latent.squeeze(2) # (batch_size, d_latent)
+    #         # 1-1. Get content latent
+    #         src_content_latent = self.content_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+    #         src_content_latent = src_content_latent.squeeze(2) # (batch_size, d_latent)
 
-            # 2-1. Get style latent
-            src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
-            src_style_latent = src_style_latent.squeeze(2) # (batch_size, d_latent)
+    #         # 2-1. Get style latent
+    #         src_style_latent = self.style_latent_encoder(encoder_out_src) # (batch_size, d_latent, 1)
+    #         src_style_latent = src_style_latent.squeeze(2) # (batch_size, d_latent)
             
-            # 3-1. Translate each src latent to d_model dimension
-            src_content_latent = self.content_latent_decoder(src_content_latent.unsqueeze(2)) # (batch_size, d_model, 1)
-            src_style_latent = self.style_latent_decoder(src_style_latent.unsqueeze(2)) # (batch_size, d_model, 1)
+    #         # 3-1. Translate each src latent to d_model dimension
+    #         src_content_latent = self.content_latent_decoder(src_content_latent.unsqueeze(2)) # (batch_size, d_model, 1)
+    #         src_style_latent = self.style_latent_decoder(src_style_latent.unsqueeze(2)) # (batch_size, d_model, 1)
 
-            # 3-2. add each src latent and repeat
-            src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
-            src_latent = src_latent.repeat(1, 1, encoder_out_src.size(2)) # (batch_size, d_model, seq_len)
+    #         # 3-2. add each src latent and repeat
+    #         src_latent = src_content_latent + src_style_latent # (batch_size, d_model, 1)
+    #         src_latent = src_latent.repeat(1, 1, encoder_out_src.size(2)) # (batch_size, d_model, seq_len)
 
-            # 5. Get output
-            encoder_out_total = torch.add(encoder_out_src, src_latent)
-            encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
+    #         # 5. Get output
+    #         encoder_out_total = torch.add(encoder_out_src, src_latent)
+    #         encoder_out_total = encoder_out_total.permute(2, 0, 1) # (seq_len, batch_size, d_model)
 
-        return encoder_out_total
+    #     return encoder_out_total

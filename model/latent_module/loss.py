@@ -38,9 +38,9 @@ def im_kernel_sum(z1, z2, z_var, exclude_diag=True):
 
     return kernel_sum
 
-class MaximumMeanDiscrepancyLoss2(nn.Module):
+class MaximumMeanDiscrepancyLoss(nn.Module):
     def __init__(self):
-        super(MaximumMeanDiscrepancyLoss2, self).__init__()
+        super(MaximumMeanDiscrepancyLoss, self).__init__()
 
     def forward(self, z_tilde, z, z_var):
         r"""Calculate maximum mean discrepancy described in the WAE paper.
@@ -83,9 +83,9 @@ class MaximumMeanDiscrepancyLoss3(nn.Module):
 
         return torch.abs(beta * (torch.sum(K)+torch.sum(L)) - gamma * torch.sum(P))
 
-class MaximumMeanDiscrepancyLoss(nn.Module):
+class MaximumMeanDiscrepancyLoss2(nn.Module):
     def __init__(self, device):
-        super(MaximumMeanDiscrepancyLoss, self).__init__()
+        super(MaximumMeanDiscrepancyLoss2, self).__init__()
         self.kernel = 'multiscale'
         self.device = device
 
