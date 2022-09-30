@@ -11,7 +11,7 @@ from ..latent_module.latent import Latent_module
 
 class custom_Bart(nn.Module):
     def __init__(self, isPreTrain: bool = True, variational: bool = True, 
-                 variational_mode_dict: dict, d_latent: int = 256, z_var: int = 2,
+                 variational_mode_dict: dict = dict(),
                  src_max_len: int = 768, trg_max_len: int = 300,
                  emb_src_trg_weight_sharing: bool = True):
         super().__init__()
@@ -64,6 +64,7 @@ class custom_Bart(nn.Module):
             self.cnn_decoder = variational_mode_dict['cnn_decoder']
             self.latent_add_encoder_out = variational_mode_dict['latent_add_encoder_out']
             self.z_var = variational_mode_dict['z_var']
+            self.d_latent = variational_mode_dict['d_latent']
 
             self.latent_module = Latent_module(d_model=self.d_hidden, d_latent=self.d_latent, 
                                                variational_model=self.variational_model, 

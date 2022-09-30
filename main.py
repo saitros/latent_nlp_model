@@ -40,7 +40,7 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    task_list = ['translation','style_transfer','reconstruction','classification','summarization','augmentation']
+    task_list = ['translation','style_transfer','reconstruction','classification','summarization']
     parser.add_argument('--task', default='translation', choices=task_list,
                         help='')
     parser.add_argument('--preprocessing', action='store_true')

@@ -67,7 +67,7 @@ def seq2seq_training(args):
             train_trg_attention_mask = f.get('train_trg_attention_mask')[:]
             valid_trg_input_ids = f.get('valid_trg_input_ids')[:]
             valid_trg_attention_mask = f.get('valid_trg_attention_mask')[:]
-        elif args.task in ['augmentation']:
+        elif args.task in ['reconstruction']:
             train_trg_input_ids = f.get('train_src_input_ids')[:]
             train_trg_attention_mask = f.get('train_src_attention_mask')[:]
             valid_trg_input_ids = f.get('valid_src_input_ids')[:]
@@ -82,7 +82,7 @@ def seq2seq_training(args):
             trg_word2id = data_['trg_word2id']
             trg_vocab_num = len(trg_word2id)
             trg_language = data_['trg_language']
-        elif args.task in ['augmentation']:
+        elif args.task in ['reconstruction']:
             trg_vocab_num = src_vocab_num
         del data_
 
@@ -118,9 +118,10 @@ def seq2seq_training(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
+                            dropout=args.dropout, embedding_dropout=args.embedding_dropout
                             variational=args.variational,
                             variational_mode_dict=variational_mode_dict,
-                            parallel=args.parallel, device=device)
+                            parallel=args.parallel)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     # elif args.model_type == 'T5':
     #     model = custom_T5(isPreTrain=args.isPreTrain, d_latent=args.d_latent, 
@@ -128,7 +129,7 @@ def seq2seq_training(args):
     #                       decoder_full_model=True)
     #     tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
-        model = custom_Bart(args=args, isPreTrain=args.isPreTrain, variational=args.variational,
+        model = custom_Bart(isPreTrain=args.isPreTrain, variational=args.variational,
                             variational_mode_dict=variational_mode_dict,
                             src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
