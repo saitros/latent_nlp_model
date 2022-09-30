@@ -105,6 +105,7 @@ def seq2seq_training(args):
         variational_mode_dict['cnn_decoder'] = args.cnn_decoder
         variational_mode_dict['latent_add_encoder_out'] = args.latent_add_encoder_out
         variational_mode_dict['z_var'] = args.z_var
+        variational_mode_dict['d_latent'] = args.d_latent
 
     if args.model_type == 'custom_transformer':
         model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
@@ -117,7 +118,8 @@ def seq2seq_training(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            variational_mode=args.variational_mode, z_var=args.z_var,
+                            variational=args.variational,
+                            variational_mode_dict=variational_mode_dict,
                             parallel=args.parallel, device=device)
         tgt_subsqeunt_mask = model.generate_square_subsequent_mask(args.trg_max_len - 1, device)
     # elif args.model_type == 'T5':
@@ -127,7 +129,7 @@ def seq2seq_training(args):
     #     tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
         model = custom_Bart(args=args, isPreTrain=args.isPreTrain, variational=args.variational,
-                            variational_mode_dict=variational_mode_dict, d_latent=args.d_latent,
+                            variational_mode_dict=variational_mode_dict,
                             src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None

@@ -17,7 +17,9 @@ class Transformer(nn.Module):
             d_latent=256, num_common_layer=10, num_encoder_layer=10, num_decoder_layer=10, 
             src_max_len=100, trg_max_len=100, 
             trg_emb_prj_weight_sharing=False, emb_src_trg_weight_sharing=False,
-            dropout=0.1, embedding_dropout=0.1, variational_mode=0, z_var=2, parallel=False, device=None):
+            dropout=0.1, embedding_dropout=0.1,
+            variational: bool = True, variational_mode_dict: dict, 
+            parallel=False):
 
         super(Transformer, self).__init__()
 
@@ -30,7 +32,6 @@ class Transformer(nn.Module):
         self.trg_max_len = trg_max_len
         self.src_vocab_num = src_vocab_num
         self.trg_vocab_num = trg_vocab_num
-        self.device = device
 
         # Parallel Transformer setting
         self.parallel = parallel
@@ -67,11 +68,23 @@ class Transformer(nn.Module):
         self.trg_output_norm = nn.LayerNorm(d_embedding, eps=1e-12)
         self.trg_output_linear2 = nn.Linear(d_embedding, trg_vocab_num)
 
-        # Variational model setting
-        self.variational_mode = variational_mode
-        self.latent_module = Latent_module(d_model=d_model, d_latent=d_latent, 
-                                           variational_mode=variational_mode, z_var=z_var, token_length=src_max_len,
-                                           device=self.device)
+        # Variational mode setting
+        if variational:
+            self.variational_model = variational_mode_dict['variational_model']
+            self.variational_token_processing = variational_mode_dict['variational_token_processing']
+            self.variational_with_target = variational_mode_dict['variational_with_target']
+            self.cnn_encoder = variational_mode_dict['cnn_encoder']
+            self.cnn_decoder = variational_mode_dict['cnn_decoder']
+            self.latent_add_encoder_out = variational_mode_dict['latent_add_encoder_out']
+            self.z_var = variational_mode_dict['z_var']
+
+            self.latent_module = Latent_module(d_model=self.d_hidden, d_latent=self.d_latent, 
+                                               variational_model=self.variational_model, 
+                                               variational_token_processing=self.variational_token_processing,
+                                               variational_with_target=self.variational_with_target,
+                                               cnn_encoder=self.cnn_encoder, self.cnn_decoder=cnn_decoder,
+                                               latent_add_encoder_out=self.latent_add_encoder_out
+                                               z_var=self.z_var, src_max_len=src_max_len, trg_max_len=trg_max_len)
         
         # Weight sharing
         self.x_logit_scale = 1.
@@ -112,7 +125,7 @@ class Transformer(nn.Module):
                         src_key_padding_mask=src_key_padding_mask).unsqueeze(0)
                     encoder_out_cat = torch.cat((encoder_out_cat, encoder_out_), dim=0)
 
-            if self.variational_mode != 0:
+            if self.variational:
                 encoder_out_trg = self.trg_embedding(trg_input_ids_copy).transpose(0, 1)
                 # Target sentence latent mapping
                 for i, encoder in enumerate(self.encoders):
@@ -145,7 +158,7 @@ class Transformer(nn.Module):
                 encoder_out = encoder(encoder_out, src_key_padding_mask=src_key_padding_mask)
 
             # Variational
-            if self.variational_mode != 0:
+            if self.variational:
                 encoder_out_trg = self.trg_embedding(trg_input_ids_copy).transpose(0, 1)
                 # Target sentence latent mapping
                 for encoder in self.encoders:

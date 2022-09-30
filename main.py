@@ -123,8 +123,22 @@ if __name__=='__main__':
     parser.add_argument('--num_common_layer', default=8, type=int, 
                         help="Number of common layers; Default is 8")
     # 2) Variational model
-    parser.add_argument('--variational_mode', default=0, type=int,
-                        help='Variational transformer mode; Default is False')
+    parser.add_argument('--variational', default=False, type=str2bool,
+                        help='Variational mode; Default is False')
+    parser.add_argument('--variational_model', default='vae', 
+                        choices=['vae', 'wae'], type=str,
+                        help='Variational transformer model type; Default is vae')
+    parser.add_argument('--variational_token_processing', default='average', 
+                        choices=['average', 'view', 'cnn'], type=str,
+                        help='Token processing for variational model; Default is average')
+    parser.add_argument('--cnn_encoder', default=False, type=str2bool,
+                        help='If use cnn to variational token processing, use cnn to encoder; Default is False')
+    parser.add_argument('--cnn_decoder', default=False, type=str2bool,
+                        help='If use cnn to variational token processing, use cnn to decoder; Default is False')
+    parser.add_argument('--latent_add_encoder_out', default=True, type=str2bool,
+                        help='Add latent variable and encoder output or not; Default is True')
+    parser.add_argument('--z_var', default=2 type=int,
+                        help='')
     parser.add_argument('--d_latent', default=128, type=int, 
                         help='Latent variable dimension; Default is 128')
     # Optimizer & LR_Scheduler setting
