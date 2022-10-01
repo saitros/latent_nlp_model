@@ -192,7 +192,9 @@ def seq2seq_training(args):
                 model.train()
             if phase == 'valid':
                 write_log(logger, 'Validation start...')
-                val_loss = 0
+                val_seq_loss = 0
+                val_latent_loss = 0
+                val_total_loss = 0
                 val_acc = 0
                 model.eval()
             for i, batch_iter in enumerate(tqdm(dataloader_dict[phase], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}')):
@@ -270,27 +272,34 @@ def seq2seq_training(args):
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         seq_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
                         total_loss = seq_loss + dist_loss
-                    val_loss += total_loss.item()
+                    val_seq_loss += seq_loss.item()
+                    val_latent_loss += dist_loss.item()
+                    val_total_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
 
             if phase == 'valid':
 
                 if args.scheduler == 'reduce_valid':
-                    scheduler.step(val_loss)
+                    scheduler.step(val_seq_loss)
                 if args.scheduler == 'lambda':
                     scheduler.step()
 
-                val_loss /= len(dataloader_dict[phase])
+                val_seq_loss /= len(dataloader_dict[phase])
+                val_latent_loss /= len(dataloader_dict[phase])
+                val_total_loss /= len(dataloader_dict[phase])
                 val_acc /= len(dataloader_dict[phase])
-                write_log(logger, 'Validation Loss: %3.3f' % val_loss)
+                write_log(logger, 'Validation Sequence Loss: %3.3f' % val_seq_loss)
+                write_log(logger, 'Validation Latent Loss: %3.3f' % val_latent_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
 
                 if args.use_tensorboard:
-                    tb_writer.add_scalar('VALID/Total_Loss', val_loss, epoch)
+                    tb_writer.add_scalar('VALID/SEQ_Loss', val_seq_loss, epoch)
+                    tb_writer.add_scalar('VALID/Latent_Loss', val_latent_loss, epoch)
+                    tb_writer.add_scalar('VALID/Total_Loss', val_total_loss, epoch)
                     tb_writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
 
                 save_file_name = model_save_name(args)
-                if val_loss < best_val_loss:
+                if val_seq_loss < best_val_loss:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({
                         'epoch': epoch,
@@ -299,7 +308,7 @@ def seq2seq_training(args):
                         'scheduler': scheduler.state_dict(),
                         'scaler': scaler.state_dict()
                     }, save_file_name)
-                    best_val_loss = val_loss
+                    best_val_loss = val_seq_loss
                     best_epoch = epoch
                 else:
                     else_log = f'Still {best_epoch} epoch Loss({round(best_val_loss, 2)}) is better...'

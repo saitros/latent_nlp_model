@@ -294,21 +294,6 @@ def total_data_load(args):
         trg_list['train'] = train['summary'].tolist()
         trg_list['valid'] = valid['summary'].tolist()
         trg_list['test'] = test['summary'].tolist()
-    
-    # if args.data_name == 'cnn_dailymail_extractive':
-    #     args.data_path = os.path.join(args.data_path, 'cnn_dailymail', args.cnn_dailymail_ver)
-
-    #     train = pd.read_csv(os.path.join(args.data_path, 'train.csv'))
-    #     valid = pd.read_csv(os.path.join(args.data_path, 'valid.csv'))
-    #     test = pd.read_csv(os.path.join(args.data_path, 'test.csv'))
-
-    #     src_list['train'] = train['article'].tolist()
-    #     src_list['valid'] = valid['article'].tolist()
-    #     src_list['test'] = test['article'].tolist()
-
-    #     trg_list['train'] = train['summary'].tolist()
-    #     trg_list['valid'] = valid['summary'].tolist()
-    #     trg_list['test'] = test['summary'].tolist()
 
     if args.src_trg_reverse:
 
