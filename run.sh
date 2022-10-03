@@ -17,17 +17,6 @@ MODEL_NAME=0613_${MODEL_TYPE}_${DATA_NAME}_${TOKENIZER}_${VOCAB_SIZE}_VAR${VARIA
 clear
 
 python main.py --preprocessing --data_name=$DATA_NAME --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_boolq --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_cb --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_copa --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_multirc --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_record --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_rte --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_wic --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_wsc --tokenizer=$TOKENIZER
-python main.py --preprocessing --data_name=super_glue_wsc.fixed --tokenizer=$TOKENIZER
-# python main.py --preprocessing --data_name=super_glue_axb --tokenizer=$TOKENIZER
-# python main.py --preprocessing --data_name=super_glue_axg --tokenizer=$TOKENIZER
 
 # multirc idx issue
 # record spm, plm issue
