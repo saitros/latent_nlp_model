@@ -1,3 +1,4 @@
+# Import modules
 from collections import defaultdict
 # Import PyTorch
 import torch
@@ -11,12 +12,17 @@ from .embedding import TransformerEmbedding
 from ..latent_module.latent import Latent_module 
 
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_num, trg_vocab_num, pad_idx=0, bos_idx=1, eos_idx=2, 
-            d_model=512, d_embedding=256, n_head=8, dim_feedforward=2048, 
-            d_latent=256, num_common_layer=10, num_encoder_layer=10, num_decoder_layer=10, 
-            src_max_len=100, trg_max_len=100, 
-            trg_emb_prj_weight_sharing=False, emb_src_trg_weight_sharing=False,
-            dropout=0.1, embedding_dropout=0.1, variational_mode=0, z_var=2, parallel=False, device=None):
+    def __init__(self, src_vocab_num: int, trg_vocab_num: int, 
+                 pad_idx: int = 0, bos_idx: int = 1, eos_idx: int = 2, 
+                 d_model: int = 512, d_embedding: int = 256, n_head: int = 8, 
+                 dim_feedforward: int = 2048, num_common_layer: int = 10, 
+                 num_encoder_layer: int = 10, num_decoder_layer: int = 10, 
+                 src_max_len: int = 100, trg_max_len: int = 100, 
+                 trg_emb_prj_weight_sharing: bool = False, 
+                 emb_src_trg_weight_sharing: bool = False,
+                 dropout: float = 0.1, embedding_dropout: float = 0.1,
+                 variational: bool = True, variational_mode_dict: dict = dict(), 
+                 parallel: bool = False):
 
         super(Transformer, self).__init__()
 
@@ -29,7 +35,6 @@ class Transformer(nn.Module):
         self.trg_max_len = trg_max_len
         self.src_vocab_num = src_vocab_num
         self.trg_vocab_num = trg_vocab_num
-        self.device = device
 
         # Parallel Transformer setting
         self.parallel = parallel
@@ -66,9 +71,24 @@ class Transformer(nn.Module):
         self.trg_output_norm = nn.LayerNorm(d_embedding, eps=1e-12)
         self.trg_output_linear2 = nn.Linear(d_embedding, trg_vocab_num)
 
-        # Variational model setting
-        self.variational_mode = variational_mode
-        self.latent_module = Latent_module(d_model, d_latent, variational_mode, z_var, device=self.device)
+        # Variational mode setting
+        if variational:
+            self.variational_model = variational_mode_dict['variational_model']
+            self.variational_token_processing = variational_mode_dict['variational_token_processing']
+            self.variational_with_target = variational_mode_dict['variational_with_target']
+            self.cnn_encoder = variational_mode_dict['cnn_encoder']
+            self.cnn_decoder = variational_mode_dict['cnn_decoder']
+            self.latent_add_encoder_out = variational_mode_dict['latent_add_encoder_out']
+            self.z_var = variational_mode_dict['z_var']
+            self.d_latent = variational_mode_dict['d_latent']
+
+            self.latent_module = Latent_module(d_model=self.d_hidden, d_latent=self.d_latent, 
+                                               variational_model=self.variational_model, 
+                                               variational_token_processing=self.variational_token_processing,
+                                               variational_with_target=self.variational_with_target,
+                                               cnn_encoder=self.cnn_encoder, self.cnn_decoder=cnn_decoder,
+                                               latent_add_encoder_out=self.latent_add_encoder_out
+                                               z_var=self.z_var, src_max_len=src_max_len, trg_max_len=trg_max_len)
         
         # Weight sharing
         self.x_logit_scale = 1.
@@ -109,24 +129,30 @@ class Transformer(nn.Module):
                         src_key_padding_mask=src_key_padding_mask).unsqueeze(0)
                     encoder_out_cat = torch.cat((encoder_out_cat, encoder_out_), dim=0)
 
-            if self.variational_mode != 0:
-                encoder_out_trg = self.trg_embedding(trg_input_ids_copy).transpose(0, 1)
+            if self.variational:
                 # Target sentence latent mapping
                 for i, encoder in enumerate(self.encoders):
                     if i == 0:
-                        encoder_out_trg_cat = encoder(encoder_out_trg, 
-                                                      src_key_padding_mask=tgt_key_padding_mask_).unsqueeze(0)
-
+                        if self.variational_with_target:
+                            encoder_out_trg = self.trg_embedding(trg_input_ids_copy).transpose(0, 1)
+                            encoder_out_trg_cat = encoder(encoder_out_trg, 
+                                                        src_key_padding_mask=tgt_key_padding_mask_).unsqueeze(0)
+                        else:
+                            encoder_out_trg_cat = list()
+                            encoder_out_trg_cat[i] = None
                         encoder_out_pre, dist_loss = self.latent_module(encoder_out_cat[i], encoder_out_trg_cat[i])
-                        encoder_out_cat[i] = torch.add(encoder_out_cat[i], encoder_out_pre)
+                        encoder_out_cat[i] = encoder_out_pre
                     else:
-                        encoder_out_trg_pre = encoder(encoder_out_trg_cat[-1], 
-                            src_key_padding_mask=tgt_key_padding_mask_).unsqueeze(0)
-                        encoder_out_trg_cat = torch.cat((encoder_out_trg_cat, encoder_out_trg_pre), dim=0)
+                        if self.variational_with_target:
+                            encoder_out_trg_pre = encoder(encoder_out_trg_cat[-1], 
+                                                        src_key_padding_mask=tgt_key_padding_mask_).unsqueeze(0)
+                            encoder_out_trg_cat = torch.cat((encoder_out_trg_cat, encoder_out_trg_pre), dim=0)
+                        else:
+                            encoder_out_trg_cat[i] = None
 
-                        encoder_out_pre, dist_loss_pre = self.latent_module(encoder_out, encoder_out_trg)
+                        encoder_out_pre, dist_loss_pre = self.latent_module(encoder_out, encoder_out_trg_cat[i])
                         dist_loss += dist_loss_pre
-                        encoder_out_cat[i] = torch.add(encoder_out_cat[i], encoder_out_pre)
+                        encoder_out_cat[i] = encoder_out_pre
 
             else:
                 dist_loss = torch.tensor(0, dtype=torch.float)
@@ -142,7 +168,7 @@ class Transformer(nn.Module):
                 encoder_out = encoder(encoder_out, src_key_padding_mask=src_key_padding_mask)
 
             # Variational
-            if self.variational_mode != 0:
+            if self.variational:
                 encoder_out_trg = self.trg_embedding(trg_input_ids_copy).transpose(0, 1)
                 # Target sentence latent mapping
                 for encoder in self.encoders:
@@ -200,7 +226,7 @@ class Transformer(nn.Module):
             encoder_out = encoder_out.repeat(1, 1, beam_size, 1)
             encoder_out = encoder_out.view(src_seq_size, -1, self.d_model)
 
-        if self.variational_mode != 0:
+        if self.variational:
             encoder_out = self.latent_module.generate(encoder_out)
 
         # Scores save vector & decoding list setting

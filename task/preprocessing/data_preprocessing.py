@@ -107,6 +107,11 @@ def data_preprocessing(args):
         elif args.task in ['classification']:
             f.create_dataset('train_label', data=np.array(trg_list['train']).astype(int))
             f.create_dataset('valid_label', data=np.array(trg_list['valid']).astype(int))
+        elif args.task in ['reconstruction']:
+            f.create_dataset('train_trg_input_ids', data=processed_src['train']['input_ids'])
+            f.create_dataset('train_trg_attention_mask', data=processed_src['train']['attention_mask'])
+            f.create_dataset('valid_trg_input_ids', data=processed_src['valid']['input_ids'])
+            f.create_dataset('valid_trg_attention_mask', data=processed_src['valid']['attention_mask'])
 
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
         f.create_dataset('test_src_input_ids', data=processed_src['test']['input_ids'])
@@ -116,6 +121,9 @@ def data_preprocessing(args):
             f.create_dataset('test_trg_attention_mask', data=processed_trg['test']['attention_mask'])
         elif args.task in ['classification']:
             f.create_dataset('test_label', data=np.array(trg_list['test']).astype(int))
+        elif args.task in ['reconstruction']:
+            f.create_dataset('test_trg_input_ids', data=processed_src['test']['input_ids'])
+            f.create_dataset('test_trg_attention_mask', data=processed_src['test']['attention_mask'])
 
     # Word2id pickle file save
     if args.task in ['classification', 'reconstruction']:

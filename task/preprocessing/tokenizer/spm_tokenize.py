@@ -56,7 +56,7 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain: str =
             f'--model_prefix={preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size} '
             f'--vocab_size={vocab_size} --character_coverage={character_coverage} '
             f'--pad_id={args.pad_id} --unk_id={args.unk_id} --bos_id={args.bos_id} --eos_id={args.eos_id} '
-            f'--split_by_whitespace=true')
+            f'--split_by_whitespace=true --user_defined_symbols=[SEP]')
 
     vocab_list = list()
     with open(f'{preprocess_save_path}/m_{domain}_{args.sentencepiece_model}_{vocab_size}.vocab') as f:
@@ -85,7 +85,7 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain: str =
     processed_sequences['valid']['input_ids'] = pad_add(valid_src_input_ids, max_len)
     processed_sequences['test']['input_ids'] = pad_add(test_src_input_ids, max_len)
 
-    # # Attention mask encoding
+    # Attention mask encoding
     processed_sequences['train']['attention_mask'] = list()
     processed_sequences['valid']['attention_mask'] = list()
     processed_sequences['test']['attention_mask'] = list()
@@ -98,22 +98,22 @@ def spm_tokenizing(sequence_dict: dict,  args: argparse.Namespace, domain: str =
         processed_sequences['test']['attention_mask'].append((ind != 0).astype(int))
 
     # Segment encoding
-    # processed_src['train']['token_type_ids'] = list()
-    # processed_src['valid']['token_type_ids'] = list()
-    # processed_src['test']['token_type_ids'] = list()
+    processed_sequences['train']['token_type_ids'] = list()
+    processed_sequences['valid']['token_type_ids'] = list()
+    processed_sequences['test']['token_type_ids'] = list()
 
-    # for ind in processed_src['train']['input_ids']:
-    #     token_type_ids_ = [0 if i <= ind.index(4) else 1 for i in range(len(ind))]
-    #     token_type_ids_ = token_type_ids_ + [0 for _ in range(args.max_len - len(ind))]
-    #     processed_src['train']['token_type_ids'].append(token_type_ids_)
-    # for ind in processed_src['valid']['input_ids']:
-    #     token_type_ids_ = [0 if i <= ind.index(4) else 1 for i in range(len(ind))]
-    #     token_type_ids_ = token_type_ids_ + [0 for _ in range(args.max_len - len(ind))]
-    #     processed_src['valid']['token_type_ids'].append(token_type_ids_)
-    # for ind in processed_src['test']['input_ids']:
-    #     token_type_ids_ = [0 if i <= ind.index(4) else 1 for i in range(len(ind))]
-    #     token_type_ids_ = token_type_ids_ + [0 for _ in range(args.max_len - len(ind))]
-    #         processed_src['test']['token_type_ids'].append(token_type_ids_)
+    for ind in processed_sequences['train']['input_ids']:
+        token_type_ids_ = [0 if i <= ind.index(4) else 1 for i in range(len(ind))]
+        token_type_ids_ = token_type_ids_ + [0 for _ in range(args.max_len - len(ind))]
+        processed_sequences['train']['token_type_ids'].append(token_type_ids_)
+    for ind in processed_sequences['valid']['input_ids']:
+        token_type_ids_ = [0 if i <= ind.index(4) else 1 for i in range(len(ind))]
+        token_type_ids_ = token_type_ids_ + [0 for _ in range(args.max_len - len(ind))]
+        processed_sequences['valid']['token_type_ids'].append(token_type_ids_)
+    for ind in processed_sequences['test']['input_ids']:
+        token_type_ids_ = [0 if i <= ind.index(4) else 1 for i in range(len(ind))]
+        token_type_ids_ = token_type_ids_ + [0 for _ in range(args.max_len - len(ind))]
+        processed_sequences['test']['token_type_ids'].append(token_type_ids_)
 
     return processed_sequences, word2id
 

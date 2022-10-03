@@ -1,4 +1,5 @@
 import math
+from collections import defaultdict
 # Import PyTorch
 import torch
 import torch.nn as nn
@@ -9,13 +10,14 @@ from transformers import BartModel, BartConfig
 from ..latent_module.latent import Latent_module 
 
 class custom_Bart(nn.Module):
-    def __init__(self, isPreTrain, PreTrainMode,
-                 variational_mode, d_latent, z_var,
-                 emb_src_trg_weight_sharing: bool =True):
+    def __init__(self, isPreTrain: bool = True, variational: bool = True, 
+                 variational_mode_dict: dict = dict(),
+                 src_max_len: int = 768, trg_max_len: int = 300,
+                 emb_src_trg_weight_sharing: bool = True):
         super().__init__()
 
         """
-        Customized Transformer Model
+        Customized Bart Model
         
         Args:
             encoder_config (dictionary): encoder transformer's configuration
@@ -29,14 +31,18 @@ class custom_Bart(nn.Module):
         """
         self.d_latent = d_latent
         self.isPreTrain = isPreTrain
-        self.PreTrainMode = PreTrainMode
+        self.variational = variational
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
-        self.model_config = BartConfig.from_pretrained(f'facebook/bart-{self.PreTrainMode}')
+        self.model_config = BartConfig.from_pretrained(f'facebook/bart-large')
         self.model_config.use_cache = False
+
+        # Token index
         self.pad_idx = self.model_config.pad_token_id
+        self.bos_idx = self.model_config.bos_token_id
+        self.eos_idx = self.model_config.eos_token_id
 
         if self.isPreTrain:
-            self.model = BartModel.from_pretrained(f'facebook/bart-{self.PreTrainMode}')
+            self.model = BartModel.from_pretrained(f'facebook/bart-large')
         else:
             self.model = BartModel(config=self.model_config)
 
@@ -44,14 +50,29 @@ class custom_Bart(nn.Module):
         self.decoder_model = self.model.get_decoder()
         # Shared embedding setting
         self.embeddings = self.model.shared
-        # Dimension Setting
+        # Dimension setting
         self.d_hidden = self.encoder_model.embed_tokens.embedding_dim
-        # 
+        # Language model head setting
         self.lm_head = nn.Linear(self.model_config.d_model, self.model.shared.num_embeddings, bias=False)
 
-        # Variational model setting
-        self.variational_mode = variational_mode
-        self.latent_module = Latent_module(self.d_hidden, d_latent, variational_mode, z_var)
+        # Variational mode setting
+        if variational:
+            self.variational_model = variational_mode_dict['variational_model']
+            self.variational_token_processing = variational_mode_dict['variational_token_processing']
+            self.variational_with_target = variational_mode_dict['variational_with_target']
+            self.cnn_encoder = variational_mode_dict['cnn_encoder']
+            self.cnn_decoder = variational_mode_dict['cnn_decoder']
+            self.latent_add_encoder_out = variational_mode_dict['latent_add_encoder_out']
+            self.z_var = variational_mode_dict['z_var']
+            self.d_latent = variational_mode_dict['d_latent']
+
+            self.latent_module = Latent_module(d_model=self.d_hidden, d_latent=self.d_latent, 
+                                               variational_model=self.variational_model, 
+                                               variational_token_processing=self.variational_token_processing,
+                                               variational_with_target=self.variational_with_target,
+                                               cnn_encoder=self.cnn_encoder, self.cnn_decoder=cnn_decoder,
+                                               latent_add_encoder_out=self.latent_add_encoder_out
+                                               z_var=self.z_var, src_max_len=src_max_len, trg_max_len=trg_max_len)
 
     def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask, 
                 non_pad_position=None, tgt_subsqeunt_mask=None):
@@ -79,20 +100,26 @@ class custom_Bart(nn.Module):
             src_encoder_out = src_encoder_out['last_hidden_state']
 
         # Variational
-        if self.variational_mode != 0:
-            # Target sentence latent mapping
-            with torch.no_grad():
-                if self.emb_src_trg_weight_sharing:
-                    trg_encoder_out = self.encoder_model(inputs_embeds=trg_input_embeds_,
-                                                         attention_mask=trg_attention_mask_copy)
-                    trg_encoder_out = trg_encoder_out['last_hidden_state']
-                else:
-                    trg_encoder_out = self.encoder_model(input_ids=trg_input_ids_copy,
-                                                         attention_mask=trg_attention_mask_copy)
-                    trg_encoder_out = trg_encoder_out['last_hidden_state']
+        if self.variational:
+            
+            # Tensor dimension transpose
+            src_encoder_out = src_encoder_out.transpose(0,1) # [seq_len, batch, d_model]
 
-            src_encoder_out = src_encoder_out.transpose(0,1)
-            trg_encoder_out = trg_encoder_out.transpose(0,1)
+            # Target sentence latent mapping
+            if self.variational_with_target:
+                with torch.no_grad():
+                    if self.emb_src_trg_weight_sharing:
+                        trg_encoder_out = self.encoder_model(inputs_embeds=trg_input_embeds_,
+                                                            attention_mask=trg_attention_mask_copy)
+                        trg_encoder_out = trg_encoder_out['last_hidden_state']
+                    else:
+                        trg_encoder_out = self.encoder_model(input_ids=trg_input_ids_copy,
+                                                            attention_mask=trg_attention_mask_copy)
+                        trg_encoder_out = trg_encoder_out['last_hidden_state']
+
+                trg_encoder_out = trg_encoder_out.transpose(0,1) # [seq_len, batch, d_model]
+            else:
+                trg_encoder_out = None
 
             src_encoder_out, dist_loss = self.latent_module(src_encoder_out, trg_encoder_out)
             src_encoder_out = src_encoder_out.transpose(0,1)
@@ -102,13 +129,11 @@ class custom_Bart(nn.Module):
         # Decoder
         if self.emb_src_trg_weight_sharing:
             model_out = self.decoder_model(inputs_embeds = trg_input_embeds, 
-                                           attention_mask = trg_attention_mask,
                                            encoder_hidden_states = src_encoder_out,
                                            encoder_attention_mask = src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
         else:
             model_out = self.decoder_model(input_ids = trg_input_ids, 
-                                           attention_mask = trg_attention_mask,
                                            encoder_hidden_states = src_encoder_out,
                                            encoder_attention_mask = src_attention_mask)
             model_out = self.lm_head(model_out['last_hidden_state'])
@@ -118,9 +143,10 @@ class custom_Bart(nn.Module):
 
         return model_out, dist_loss
 
-    def generate(self, src_input_ids, src_attention_mask, device, beam_size: int = 5, repetition_penalty: float = 0.7):
+    def generate(self, src_input_ids, src_attention_mask, beam_size: int = 5, repetition_penalty: float = 0.7):
 
         # Pre_setting
+        device = src_input_ids.device
         batch_size = src_input_ids.size(0)
         src_seq_size = src_input_ids.size(1)
 

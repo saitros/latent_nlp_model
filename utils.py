@@ -86,7 +86,7 @@ def get_tb_exp_name(args:argparse.Namespace):
 
     exp_name = str()
     exp_name += "%s - " % args.task
-    exp_name += "%s - " % args.model_name
+    exp_name += "%s - " % args.model_type
 
     if args.training:
         exp_name += 'TRAIN - '

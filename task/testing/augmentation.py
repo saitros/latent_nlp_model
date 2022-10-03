@@ -23,7 +23,6 @@ from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 from task.utils import model_save_name, results_save_name
 
 def seq2seq_testing(args):
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     #===================================#
@@ -38,10 +37,10 @@ def seq2seq_testing(args):
     logger.propagate = False
 
     if args.use_tensorboard:
-        writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
-        writer.add_text('args', str(args))
+        tb_writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
+        tb_writer.add_text('args', str(args))
 
-    write_log(logger, 'Start testing!')
+    write_log(logger, 'Start training!')
 
     #===================================#
     #============Data Load==============#
@@ -57,20 +56,22 @@ def seq2seq_testing(args):
     else:
         save_name = f'processed_{args.task}_{args.tokenizer}.hdf5'
 
-    with h5py.File(os.path.join(save_path, 'test_' + save_name), 'r') as f:
-        test_src_input_ids = f.get('test_src_input_ids')[:]
-        test_src_attention_mask = f.get('test_src_attention_mask')[:]
+    with h5py.File(os.path.join(save_path, save_name), 'r') as f:
+        train_src_input_ids = f.get('train_src_input_ids')[:]
+        train_src_attention_mask = f.get('train_src_attention_mask')[:]
         if args.task in ['translation', 'style_transfer', 'summarization']:
-            test_trg_input_ids = f.get('test_trg_input_ids')[:]
-            test_trg_attention_mask = f.get('test_trg_attention_mask')[:]
+            train_trg_input_ids = f.get('train_trg_input_ids')[:]
+            train_trg_attention_mask = f.get('train_trg_attention_mask')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
         src_word2id = data_['src_word2id']
-        trg_word2id = data_['trg_word2id']
-        trg_id2word = {v: k for k, v in trg_word2id.items()}
         src_vocab_num = len(src_word2id)
-        trg_vocab_num = len(trg_word2id)
+        src_language = data_['src_language']
+        if args.task in ['translation', 'style_transfer', 'summarization']:
+            trg_word2id = data_['trg_word2id']
+            trg_vocab_num = len(trg_word2id)
+            trg_language = data_['trg_language']
         del data_
 
     gc.enable()

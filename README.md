@@ -8,6 +8,7 @@ This code is written in Python. Dependencies include
 * Python == 3.6
 * PyTorch == 1.8
 * Transformers (Huggingface) == 4.8.1
+* NLG-Eval == 2.3.0 (https://github.com/Maluuba/nlg-eval)
 
 ### Usable Data
 #### Neural Machine Translation
@@ -21,8 +22,8 @@ This code is written in Python. Dependencies include
 * CNN & Daily Mail **News Summarization** (--task=summarization --data_name=cnn_dailymail)
 #### Classification
 * IMDB **Sentiment Analysis** (--task=classification --data_name=IMDB)
-* NSMC (Coming soon...)
-* Korean Hate Speech (Coming soon...)
+* NSMC **Sentiment Analysis** (Coming soon...)
+* Korean Hate Speech **Toxic Classification** (Coming soon...)
 
 ## Preprocessing
 
@@ -46,6 +47,13 @@ Available options are
 python main.py --preprocessing --tokenizer=spm --sentencepiece_model=unigram \
 --src_vocab_size=8000 --trg_vocab_size=8000 \
 --pad_id=0 --unk_id=3 --bos_id=1 --eos_id=2
+```
+
+### Use Pre-trained Tokenizer
+If you want to use pre-trained tokenizer, you can use it by entering its name in the tokenizer option. In this case, options such as vocabulary size and ID are ignored because of using a pre-trained tokenizer. Currently available pre-trained tokenizers are 'Bart', 'Bert', and 'T5'.
+
+```
+python main.py --preprocessing --tokenizer=bart
 ```
 
 ## Training
@@ -77,13 +85,35 @@ python main.py --training --d_model=768 --d_embedding=256 --n_head=16 \
 --num_decoder_layer=8 --trg_emb_prj_weight_sharing=False --emb_src_trg_weight_sharing=True
 ```
 
+#### Parallel Options
+<img src="./figure/Parallel_Transformer.png">
+On the left is the Transformer architecture proposed in the previous paper. However, the architecture we propose is in which encoder and decoder are configured in parallel.
+
+```
+python main.py --training --parallel=True
+```
+
 ### Bart
 Implementation of the Bart model in "[BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension](https://arxiv.org/pdf/1910.13461.pdf)" (Mike Lewis, Yinhan Liu, Naman Goyal, Marjan Ghazvininejad, Abdelrahman Mohamed, Omer Levy, Ves Stoyanov and Luke Zettlemoyer, ACL 2020).
+
+```
+python main.py --training --model_type=bart
+```
+
+#### Beam Search
+
+Available options are
+* Beam size (--beam_size)
+* Length normalization (--beam_alpha)
+* Penelize word that already generated (--repetition_penalty)
+
+```
+python main.py --testing --test_batch_size=48 --beam_size=5 --beam_alpha=0.7 --repetition_penalty=0.7
+```
 
 ## Authors
 
 * **Kyohoon Jin** - *Project Manager* - [[Link]](https://github.com/fhzh123)
-* **Jaeyoung Park** - *Sub Manager* - [[Link]](https://github.com/jury124)
 * **Juhwan Choi** - *Enginner* - [[Link]](https://github.com/c-juhwan)
 * **Junho Lee** - *Enginner* - [[Link]](https://github.com/saitros)
 
