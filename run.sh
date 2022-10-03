@@ -1,8 +1,8 @@
 TASK=style_transfer
-DATA_NAME=WNC
+DATA_NAME=glue_cola
 
 MODEL_TYPE=custom_transformer
-TOKENIZER=T5
+TOKENIZER=bert
 VOCAB_SIZE=8000
 MAX_LEN=100
 VARIATIONAL_MODE=9
@@ -16,6 +16,36 @@ MODEL_NAME=0613_${MODEL_TYPE}_${DATA_NAME}_${TOKENIZER}_${VOCAB_SIZE}_VAR${VARIA
 
 clear
 
-python main.py --preprocessing --task=$TASK --data_name=$DATA_NAME --src_max_len=$MAX_LEN --trg_max_len=$MAX_LEN --src_vocab_size=$VOCAB_SIZE --trg_vocab_size=$VOCAB_SIZE --model_type=$MODEL_TYPE --tokenizer=$TOKENIZER --isPreTrain=True --device=$DEVICE --sentencepiece_model=bpe
-python main.py --training --task=$TASK --data_name=$DATA_NAME --model_name=$MODEL_NAME --variational_mode=$VARIATIONAL_MODE --src_max_len=$MAX_LEN --trg_max_len=$MAX_LEN --num_epochs=$NUM_EPOCHS --src_vocab_size=$VOCAB_SIZE --trg_vocab_size=$VOCAB_SIZE --batch_size=$BATCH_SIZE --lr=$LR --model_type=$MODEL_TYPE --tokenizer=$TOKENIZER --isPreTrain=True --device=$DEVICE --sentencepiece_model=bpe
-python main.py --testing --task=$TASK --data_name=$DATA_NAME --model_name=$MODEL_NAME --variational_mode=$VARIATIONAL_MODE --src_max_len=$MAX_LEN --trg_max_len=$MAX_LEN --num_epochs=$NUM_EPOCHS --src_vocab_size=$VOCAB_SIZE --trg_vocab_size=$VOCAB_SIZE --batch_size=$BATCH_SIZE --lr=$LR --model_type=$MODEL_TYPE --tokenizer=$TOKENIZER --isPreTrain=True --device=$DEVICE
+python main.py --preprocessing --data_name=$DATA_NAME --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_boolq --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_cb --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_copa --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_multirc --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_record --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_rte --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_wic --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_wsc --tokenizer=$TOKENIZER
+python main.py --preprocessing --data_name=super_glue_wsc.fixed --tokenizer=$TOKENIZER
+# python main.py --preprocessing --data_name=super_glue_axb --tokenizer=$TOKENIZER
+# python main.py --preprocessing --data_name=super_glue_axg --tokenizer=$TOKENIZER
+
+# multirc idx issue
+# record spm, plm issue
+
+
+## Super Glue
+# boolq : question, passage, label
+# cb : premise, hypothesis, label
+# copa : premise, choice1, choice2, question, label
+# multirc : paragraph, question, answer, label / 여기 index 가 다른데?
+# record : passage, query, entities, answers
+# rte : premise, hypothesis, label
+# wic : word, sentence1, sentence2, start1, start2, end1, end2, label
+# wsc : text, span1_index, spna2_index, span1_text, span2_text, label
+# wsc.fixed : text, span1_index, spna2_index, span1_text, span2_text, label
+# axb(JUST TEST DATASET!!!) : sentence1, sentece2, label
+# axg(JUST TEST DATASET!!!) : premise, hypothesis, label
+
+# python main.py --preprocessing --task=$TASK --data_name=$DATA_NAME --src_max_len=$MAX_LEN --trg_max_len=$MAX_LEN --src_vocab_size=$VOCAB_SIZE --trg_vocab_size=$VOCAB_SIZE --model_type=$MODEL_TYPE --tokenizer=$TOKENIZER --isPreTrain=True --device=$DEVICE --sentencepiece_model=bpe
+# python main.py --training --task=$TASK --data_name=$DATA_NAME --model_name=$MODEL_NAME --variational_mode=$VARIATIONAL_MODE --src_max_len=$MAX_LEN --trg_max_len=$MAX_LEN --num_epochs=$NUM_EPOCHS --src_vocab_size=$VOCAB_SIZE --trg_vocab_size=$VOCAB_SIZE --batch_size=$BATCH_SIZE --lr=$LR --model_type=$MODEL_TYPE --tokenizer=$TOKENIZER --isPreTrain=True --device=$DEVICE --sentencepiece_model=bpe
+# python main.py --testing --task=$TASK --data_name=$DATA_NAME --model_name=$MODEL_NAME --variational_mode=$VARIATIONAL_MODE --src_max_len=$MAX_LEN --trg_max_len=$MAX_LEN --num_epochs=$NUM_EPOCHS --src_vocab_size=$VOCAB_SIZE --trg_vocab_size=$VOCAB_SIZE --batch_size=$BATCH_SIZE --lr=$LR --model_type=$MODEL_TYPE --tokenizer=$TOKENIZER --isPreTrain=True --device=$DEVICE
