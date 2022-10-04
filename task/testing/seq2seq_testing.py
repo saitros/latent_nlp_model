@@ -104,7 +104,6 @@ def seq2seq_testing(args):
                             dropout=args.dropout, embedding_dropout=args.embedding_dropout,
                             trg_emb_prj_weight_sharing=args.trg_emb_prj_weight_sharing,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing, 
-                            dropout=args.dropout, embedding_dropout=args.embedding_dropout
                             variational=args.variational,
                             variational_mode_dict=variational_mode_dict,
                             parallel=args.parallel)

@@ -123,7 +123,7 @@ if __name__=='__main__':
     parser.add_argument('--num_common_layer', default=8, type=int, 
                         help="Number of common layers; Default is 8")
     # 2) Variational model
-    parser.add_argument('--variational', default=False, type=str2bool,
+    parser.add_argument('--variational', action='store_true',
                         help='Variational mode; Default is False')
     parser.add_argument('--variational_model', default='vae', 
                         choices=['vae', 'wae'], type=str,
@@ -131,13 +131,15 @@ if __name__=='__main__':
     parser.add_argument('--variational_token_processing', default='average', 
                         choices=['average', 'view', 'cnn'], type=str,
                         help='Token processing for variational model; Default is average')
+    parser.add_argument('--variational_with_target', default=False, type=str2bool,
+                        help='')
     parser.add_argument('--cnn_encoder', default=False, type=str2bool,
                         help='If use cnn to variational token processing, use cnn to encoder; Default is False')
     parser.add_argument('--cnn_decoder', default=False, type=str2bool,
                         help='If use cnn to variational token processing, use cnn to decoder; Default is False')
     parser.add_argument('--latent_add_encoder_out', default=True, type=str2bool,
                         help='Add latent variable and encoder output or not; Default is True')
-    parser.add_argument('--z_var', default=2 type=int,
+    parser.add_argument('--z_var', default=2, type=int,
                         help='')
     parser.add_argument('--d_latent', default=128, type=int, 
                         help='Latent variable dimension; Default is 128')
@@ -153,7 +155,6 @@ if __name__=='__main__':
     parser.add_argument('--lr_lambda', default=0.95, type=float,
                         help="Lambda learning scheduler's lambda; Default is 0.95")
     # Training setting
-    parser.add_argument('--z_var', default=2, type=int)
     parser.add_argument('--min_len', default=4, type=int, 
                         help="Sentences's minimum length; Default is 4")
     parser.add_argument('--num_epochs', default=100, type=int, 

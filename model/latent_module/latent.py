@@ -23,6 +23,8 @@ class Latent_module(nn.Module):
 
         self.z_var = z_var
         self.loss_lambda = 1
+        self.src_max_len = src_max_len
+        self.trg_max_len = trg_max_len
         
         # Variational Autoencoder
         if self.variational_model == 'vae':
@@ -51,7 +53,7 @@ class Latent_module(nn.Module):
             self.latent_decoder = full_cnn_latent_decoder(d_model, d_latent)
         # cnn 일반버젼 코딩도 진행해야함
 
-    def forward(self, encoder_out_src, encoder_out_trg=None):
+    def forward(self, encoder_out_src, encoder_out_trg):
 
     #===================================#
     #================VAE================#
@@ -64,7 +66,7 @@ class Latent_module(nn.Module):
         4. Re-parameterization trick
         5. Decoding by 'z_to_context'
         """
-        if self.variational_model = 'vae':
+        if self.variational_model == 'vae':
 
             # 1-1. Model dimension to latent dimenseion with CNN encoder
             if self.cnn_encoder:
@@ -85,9 +87,9 @@ class Latent_module(nn.Module):
                 # Target encoding
                 if self.variational_with_target:
                     if self.trg_max_len == 100:
-                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:-2](encoder_out_src) # [batch, d_latent]
+                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:-2](encoder_out_trg) # [batch, d_latent]
                     elif self.trg_max_len == 300:
-                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:](encoder_out_src) # [batch, d_latent]
+                        trg_latent = nn.Sequential(*list(self.latent_encoder.children()))[2:](encoder_out_trg) # [batch, d_latent]
                     elif self.trg_max_len == 768:
                         trg_latent = self.latent_encoder(encoder_out_trg) # [batch, d_latent]
                     else:
@@ -143,9 +145,10 @@ class Latent_module(nn.Module):
             # 5-2. Decoding by 'z_to_context'
             else:
                 resize_z = self.z_to_context(z) # [batch, d_model]
-                resize_z = resize_z.unsqueeze(1).repeat(1, src_max_len, 1)
+                resize_z = resize_z.unsqueeze(1).repeat(1, self.src_max_len, 1)
 
             # 6. Add latent variable or use only latent variable
+            resize_z = resize_z.transpose(0, 1) # [seq_len, batch, d_model]
             if self.latent_add_encoder_out:
                 encoder_out_total = torch.add(encoder_out_src, resize_z)
             else:
@@ -227,13 +230,15 @@ class Latent_module(nn.Module):
             else:
                 encoder_out_total = src_latent
 
+        return encoder_out_total, dist_loss
+
     def generate(self, encoder_out_src):
 
     #===================================#
     #================VAE================#
     #===================================#
 
-        if self.variational_model = 'vae':
+        if self.variational_model == 'vae':
             # 1-1. Model dimension to latent dimenseion with CNN encoder
             if self.cnn_encoder:
 
@@ -284,7 +289,7 @@ class Latent_module(nn.Module):
     #================WAE================#
     #===================================#
 
-        if self.variational_model = 'wae':
+        if self.variational_model == 'wae':
 
             # 1-1. Model dimension to latent dimenseion with CNN encoder
             if self.cnn_encoder:

@@ -86,8 +86,8 @@ class Transformer(nn.Module):
                                                variational_model=self.variational_model, 
                                                variational_token_processing=self.variational_token_processing,
                                                variational_with_target=self.variational_with_target,
-                                               cnn_encoder=self.cnn_encoder, self.cnn_decoder=cnn_decoder,
-                                               latent_add_encoder_out=self.latent_add_encoder_out
+                                               cnn_encoder=self.cnn_encoder, cnn_decoder=self.cnn_decoder,
+                                               latent_add_encoder_out=self.latent_add_encoder_out,
                                                z_var=self.z_var, src_max_len=src_max_len, trg_max_len=trg_max_len)
         
         # Weight sharing

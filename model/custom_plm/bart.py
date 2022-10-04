@@ -29,7 +29,6 @@ class custom_Bart(nn.Module):
             log_var (torch.Tensor): log variance of latent vector
             z (torch.Tensor): sampled latent vector
         """
-        self.d_latent = d_latent
         self.isPreTrain = isPreTrain
         self.variational = variational
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
@@ -70,8 +69,8 @@ class custom_Bart(nn.Module):
                                                variational_model=self.variational_model, 
                                                variational_token_processing=self.variational_token_processing,
                                                variational_with_target=self.variational_with_target,
-                                               cnn_encoder=self.cnn_encoder, self.cnn_decoder=cnn_decoder,
-                                               latent_add_encoder_out=self.latent_add_encoder_out
+                                               cnn_encoder=self.cnn_encoder, cnn_decoder=self.cnn_decoder,
+                                               latent_add_encoder_out=self.latent_add_encoder_out,
                                                z_var=self.z_var, src_max_len=src_max_len, trg_max_len=trg_max_len)
 
     def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask, 
@@ -110,18 +109,19 @@ class custom_Bart(nn.Module):
                 with torch.no_grad():
                     if self.emb_src_trg_weight_sharing:
                         trg_encoder_out = self.encoder_model(inputs_embeds=trg_input_embeds_,
-                                                            attention_mask=trg_attention_mask_copy)
+                                                             attention_mask=trg_attention_mask_copy)
                         trg_encoder_out = trg_encoder_out['last_hidden_state']
                     else:
                         trg_encoder_out = self.encoder_model(input_ids=trg_input_ids_copy,
-                                                            attention_mask=trg_attention_mask_copy)
+                                                             attention_mask=trg_attention_mask_copy)
                         trg_encoder_out = trg_encoder_out['last_hidden_state']
 
                 trg_encoder_out = trg_encoder_out.transpose(0,1) # [seq_len, batch, d_model]
             else:
                 trg_encoder_out = None
 
-            src_encoder_out, dist_loss = self.latent_module(src_encoder_out, trg_encoder_out)
+            src_encoder_out, dist_loss = self.latent_module(encoder_out_src=src_encoder_out, 
+                                                            encoder_out_trg=trg_encoder_out)
             src_encoder_out = src_encoder_out.transpose(0,1)
         else:
             dist_loss = torch.tensor(0, dtype=torch.float)
