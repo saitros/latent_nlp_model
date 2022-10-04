@@ -5,11 +5,13 @@ import pickle
 import logging
 import numpy as np
 # Import custom modules
-from task.preprocessing.tokenizer.spm_tokenize import spm_tokenizing
-from task.preprocessing.tokenizer.plm_tokenize import plm_tokenizing
+from task.preprocessing.tokenizer.spm_tokenize import spm_tokenizing, benchmark_spm_tokenizing
+from task.preprocessing.tokenizer.plm_tokenize import plm_tokenizing, benchmark_plm_tokenizing
 from task.preprocessing.tokenizer.spacy_tokenize import spacy_tokenizing
 from task.preprocessing.data_load import total_data_load
 from utils import TqdmLoggingHandler, write_log
+
+from datasets import load_dataset
 
 def data_preprocessing(args):
 
@@ -137,6 +139,85 @@ def data_preprocessing(args):
             'trg_word2id': word2id_trg
         }
     
+    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'wb') as f:
+        pickle.dump(word2id_dict, f)
+
+    write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
+
+def benchmark_preprocessing(args):
+
+    start_time = time.time()
+
+    #===================================#
+    #==============Logging==============#
+    #===================================#
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    handler = TqdmLoggingHandler()
+    handler.setFormatter(logging.Formatter(" %(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S"))
+    logger.addHandler(handler)
+    logger.propagate = False
+
+    #===================================#
+    #=============Data Load=============#
+    #===================================#
+
+    write_log(logger, 'Start preprocessing!')
+
+    dataset = total_data_load(args)
+
+    #===================================#
+    #==========Pre-processing===========#
+    #===================================#
+
+    write_log(logger, 'Tokenizer setting...')
+    start_time = time.time()
+
+    
+    if args.tokenizer == 'spm':
+        processed_src, word2id_src = benchmark_spm_tokenizing(dataset, args, domain='src')
+    else:
+        processed_src, word2id_src = benchmark_plm_tokenizing(dataset, args, domain='src', language='en')
+    
+    # print(processed_src['train'].keys())
+    write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
+
+    #===================================#
+    #==============Saving===============#
+    #===================================#
+
+    write_log(logger, 'Parsed sentence saving...')
+    start_time = time.time()
+
+    # Path checking
+    save_path = os.path.join(args.preprocess_path, args.data_name, args.tokenizer)
+    if not os.path.exists(save_path):
+        try:
+            os.mkdir(save_path)
+        except FileNotFoundError:
+            os.mkdir(os.path.join(args.preprocess_path, args.data_name))
+            os.mkdir(save_path)
+
+    if args.tokenizer == 'spm':
+        save_name = f'processed_{args.data_name}_{args.sentencepiece_model}_src_{args.src_vocab_size}.hdf5'
+    else:
+        save_name = f'processed_{args.data_name}_{args.tokenizer}.hdf5'
+
+    with h5py.File(os.path.join(save_path, save_name), 'w') as fp:
+        for phase in processed_src.keys():
+            for key in processed_src[phase].keys():
+                if key in ['label','idx','start1','start2','end1','end2','span1_index','span2_index']:
+                    fp.create_dataset(f'{phase}_{key}', data=np.array(processed_src[phase][key]).astype(int))
+                else:
+                    fp.create_dataset(f'{phase}_{key}_input_ids', data=processed_src[phase][key]['input_ids'])
+                    fp.create_dataset(f'{phase}_{key}_attention_mask', data=processed_src[phase][key]['attention_mask'])
+
+    word2id_dict = {
+            'src_language' : 'en', 
+            'src_word2id' : word2id_src
+        }
+
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'wb') as f:
         pickle.dump(word2id_dict, f)
 

@@ -2,7 +2,7 @@
 import time
 import argparse
 # Import custom modules
-from task.preprocessing.data_preprocessing import data_preprocessing
+from task.preprocessing.data_preprocessing import data_preprocessing, benchmark_preprocessing
 from task.training.seq2label_training import seq2label_training
 from task.training.seq2seq_training import seq2seq_training
 from task.testing.seq2seq_testing import seq2seq_testing
@@ -18,10 +18,13 @@ def main(args):
     total_start_time = time.time()
 
     # Path setting
-    path_check(args)
+    # path_check(args)
 
     if args.preprocessing:
-        data_preprocessing(args)
+        if args.data_name.split('_')[:-1]:
+            benchmark_preprocessing(args)
+        else:
+            data_preprocessing(args)
 
     if args.training:
         if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
@@ -190,5 +193,5 @@ if __name__=='__main__':
     parser.add_argument('--print_freq', default=100, type=int, 
                         help='Print training process frequency; Default is 100')
     args = parser.parse_args()
-
+    print(args.data_name)
     main(args)

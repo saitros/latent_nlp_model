@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
+from datasets import load_dataset
+
 def data_split_index(seq):
 
     paired_data_len = len(seq)
@@ -295,6 +297,17 @@ def total_data_load(args):
         trg_list['valid'] = valid['summary'].tolist()
         trg_list['test'] = test['summary'].tolist()
 
+    
+    if ''.join(args.data_name.split('_')[0]) == 'glue' or ''.join(args.data_name.split('_')[:2]) == 'superglue':
+        if ''.join(args.data_name.split('_')[0]) == 'glue':
+            task = '_'.join(args.data_name.split('_')[1:])
+        else:
+            task = args.data_name.split('_')[-1]
+        
+        dataset = load_dataset('_'.join(args.data_name.split('_')[:-1]), task)
+
+        return dataset
+
     if args.src_trg_reverse:
 
         assert args.task != 'classification'
@@ -304,3 +317,42 @@ def total_data_load(args):
         src_list = src_list_copy
 
     return src_list, trg_list
+
+
+if __name__ == '__main__':
+    print('hi')
+    ## Process
+    # data_preprocess call data_load
+    # data_load load dataset and return src, trg
+    # data_preprocess preprocessing data and save processed data
+
+    # args.data_name = ['glue', 'super_glue']
+
+    # glue_list = ['cola', 'sst2', 'mrpc', 'qqp', 'stsb', 'mnli', 'mnli_mismatched', 'mnli_matched', 'qnli', 'rte', 'wnli', 'ax']
+    # super_glue_list = ['boolq', 'cb', 'copa', 'multirc', 'record', 'rte', 'wic', 'wsc', 'wsc.fixed', 'axb', 'axg']
+
+    ## Glue
+    # cola : sentence, label
+    # sst2 : sentence, label
+    # mrpc : sentence1, sentence2, label
+    # qqp : question1, question2, label
+    # stsb : sentence1, sentence2, label
+    # mnli : premise, hypothesis, label
+    # mnli_mismatched(NO TRAIN DATASET!!!) : premise, hypothesis, label 
+    # qnli : question, sentence, label
+    # rte : sentence1, sentence2, label
+    # wnli : sentence1, sentence2, label
+    # ax(JUST TEST DATASET!!!) : premise, hypothesis, label
+
+    ## Super Glue
+    # boolq : question, passage, label
+    # cb : premise, hypothesis, label
+    # copa : premise, choice1, choice2, question, label
+    # multirc : paragraph, question, answer, label / 여기 index 가 다른데?
+    # record : passage, query, entities, answers
+    # rte : premise, hypothesis, label
+    # wic : word, sentence1, sentence2, start1, start2, end1, end2, label
+    # wsc : text, span1_index, spna2_index, span1_text, span2_text, label
+    # wsc.fixed : text, span1_index, spna2_index, span1_text, span2_text, label
+    # axb(JUST TEST DATASET!!!) : sentence1, sentece2, label
+    # axg(JUST TEST DATASET!!!) : premise, hypothesis, label

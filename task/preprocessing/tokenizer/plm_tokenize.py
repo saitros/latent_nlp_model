@@ -1,6 +1,8 @@
 import argparse
 from transformers import  BertTokenizer, BartTokenizer, T5Tokenizer
 
+from datasets import load_dataset
+
 def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace, 
                     domain: str = 'src', language: str = 'en'):
 
@@ -64,3 +66,62 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
     word2id = tokenizer.get_vocab()
 
     return processed_sequences, word2id
+
+def benchmark_plm_tokenizing(dataset, args, domain='src', language='en'):
+
+    # 1) Pre-setting
+    processed_sequences = dict()
+    
+    for phase in dataset.keys():
+        processed_sequences[phase] = dict()
+        for key in dataset[phase].column_names:
+            processed_sequences[phase][key] = dict()
+
+    if domain == 'src':
+        max_len = args.src_max_len
+    if domain == 'trg':
+        max_len = args.trg_max_len
+
+    if args.tokenizer == 'bert':
+        if language == 'en':
+            tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+    elif args.tokenizer == 'bart':
+        if language == 'en':
+            tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
+    elif args.tokenizer == 'T5':
+        if language == 'en':
+            tokenizer = T5Tokenizer.from_pretrained('t5-base')
+    else:
+        raise Exception(f'{language} language does not support')
+
+    for phase in dataset.keys():
+        for key in dataset[phase].column_names:
+
+            # integer column
+            if key in ['label','idx','start1','start2','end1','end2','span1_index','span2_index']:
+                processed_sequences[phase][key] = dataset[phase][key]
+            else:
+                
+                encoded_dict = \
+                        tokenizer(
+                                dataset[phase][key],
+                                max_length=max_len,
+                                padding='max_length',
+                                truncation=True
+                                )
+
+                
+                processed_sequences[phase][key]['input_ids'] = encoded_dict['input_ids']
+                processed_sequences[phase][key]['attention_mask'] = encoded_dict['attention_mask']
+                if args.tokenizer == 'bert':
+                    processed_sequences[phase][key]['token_type_ids'] = encoded_dict['token_type_ids']
+
+
+    if args.tokenizer == 'bart' and domain == 'trg':
+        for i in range(len(processed_sequences[phase]['input_ids'])):
+            processed_sequences[phase]['input_ids'][i][0] = 2
+
+    word2id = tokenizer.get_vocab()
+
+    return processed_sequences, word2id
+
