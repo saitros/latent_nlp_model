@@ -230,7 +230,7 @@ class Latent_module(nn.Module):
             else:
                 encoder_out_total = src_latent
 
-        return encoder_out_total, dist_loss
+        return encoder_out_total, dist_loss * 100 # Loss Lambda Refactoring 필수
 
     def generate(self, encoder_out_src):
 

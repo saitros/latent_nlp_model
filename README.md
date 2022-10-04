@@ -8,6 +8,7 @@ This code is written in Python. Dependencies include
 * Python == 3.6
 * PyTorch == 1.8
 * Transformers (Huggingface) == 4.8.1
+* Datasets == ?.?.?
 * NLG-Eval == 2.3.0 (https://github.com/Maluuba/nlg-eval)
 
 ### Usable Data
