@@ -56,12 +56,12 @@ def data_preprocessing(args):
         src_language = 'kr'
     elif args.data_name in ['IMDB', 'ProsCons', 'MR']:
         src_language = 'en'
+    elif args.data_name in ['dacon_kotour']:
+        src_language = 'kr'
 
     if args.task in ['classification', 'reconstruction']:
         if args.tokenizer == 'spm':
             processed_src, word2id_src = spm_tokenizing(src_list, args, domain='src')
-        # elif args.tokenizer == 'spacy':
-        #     processed_src, processed_trg, word2id = spacy_tokenizing(src_list, trg_list, args)
         else:
             processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
 
@@ -69,11 +69,15 @@ def data_preprocessing(args):
         if args.tokenizer == 'spm':
             processed_src, word2id_src = spm_tokenizing(src_list, args, domain='src')
             processed_trg, word2id_trg = spm_tokenizing(trg_list, args, domain='trg', src_trg_identical=args.src_trg_identical)
-        # elif args.tokenizer == 'spacy':
-        #     processed_src, processed_trg, word2id = spacy_tokenizing(src_list, trg_list, args)
         else:
             processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
             processed_trg, word2id_trg = plm_tokenizing(trg_list, args, domain='trg', language=trg_language)
+
+    elif args.task in ['multi-modal_classification']:
+        if args.tokenizer == 'spm':
+            processed_src, word2id_src = spm_tokenizing(src_list['txt'], args, domain='src')
+        else:
+            processed_src, word2id_src = plm_tokenizing(src_list['txt'], args, domain='src', language=src_language)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
 
@@ -86,13 +90,11 @@ def data_preprocessing(args):
 
     # Path checking
     save_path = os.path.join(args.preprocess_path, args.data_name, args.tokenizer)
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
 
     if args.tokenizer == 'spm':
         save_name = f'processed_{args.task}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.task}_{args.tokenizer}.hdf5'
+        save_name = f'processed_{args.task}.hdf5'
 
     with h5py.File(os.path.join(save_path, save_name), 'w') as f:
         f.create_dataset('train_src_input_ids', data=processed_src['train']['input_ids'])
@@ -112,6 +114,11 @@ def data_preprocessing(args):
             f.create_dataset('train_trg_attention_mask', data=processed_src['train']['attention_mask'])
             f.create_dataset('valid_trg_input_ids', data=processed_src['valid']['input_ids'])
             f.create_dataset('valid_trg_attention_mask', data=processed_src['valid']['attention_mask'])
+        elif args.task in ['multi-modal_classification']:
+            f.create_dataset('train_src_img_path', data=np.array(src_list['img']['train'], dtype='S'))
+            f.create_dataset('valid_src_img_path', data=np.array(src_list['img']['valid'], dtype='S'))
+            f.create_dataset('train_label', data=np.array(trg_list['train']).astype(int))
+            f.create_dataset('valid_label', data=np.array(trg_list['valid']).astype(int))
 
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
         f.create_dataset('test_src_input_ids', data=processed_src['test']['input_ids'])
@@ -124,9 +131,11 @@ def data_preprocessing(args):
         elif args.task in ['reconstruction']:
             f.create_dataset('test_trg_input_ids', data=processed_src['test']['input_ids'])
             f.create_dataset('test_trg_attention_mask', data=processed_src['test']['attention_mask'])
+        elif args.task in ['multi-modal_classification']:
+            f.create_dataset('test_src_img_path', data=np.array(src_list['img']['test'], dtype='S'))
 
     # Word2id pickle file save
-    if args.task in ['classification', 'reconstruction']:
+    if args.task in ['classification', 'reconstruction', 'multi-modal_classification']:
         word2id_dict = {
             'src_language' : src_language, 
             'src_word2id' : word2id_src

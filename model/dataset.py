@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data.dataset import Dataset
+import albumentations as A
 
 class Seq2SeqDataset(Dataset):
     def __init__(self, src_list, src_att_list, trg_list, trg_att_list,
@@ -50,27 +51,33 @@ class Seq2LabelDataset(Dataset):
     def __len__(self):
         return self.num_data
 
-class HybridDataset(Dataset):
-    def __init__(self, src_list, src_att_list, trg_list, trg_att_list,
-                 min_len: int = 4, src_max_len: int = 300, trg_max_len: int = 360):
+class MutlimodalClassificationDataset(Dataset):
+    def __init__(self, src_list: list, src_att_list: list, src_img_path: list, trg_list: list = None,
+                 min_len: int = 4, src_max_len: int = 300, image_transform: A.core.composition.Compose = None):
         self.tensor_list = []
-        for src, src_att, trg, trg_att in zip(src_list, src_att_list, trg_list, trg_att_list):
-            if min_len <= len(src) <= src_max_len and min_len <= len(trg) <= trg_max_len:
-                # Source tensor
+        self.image_transform = image_transform
+        # For Inference
+        if trg_list is None:
+            trg_list = [0 for _ in range(len(src_list))]
+        for src, src_att, img_path, trg in zip(src_list, src_att_list, src_img_path, trg_list):
+            if min_len <= len(src) <= src_max_len:
+                # Source text tensor
                 src_tensor = torch.zeros(src_max_len, dtype=torch.long)
                 src_tensor[:len(src)] = torch.tensor(src, dtype=torch.long)
                 src_att_tensor = torch.tensor(src_att, dtype=torch.long)
                 # Target tensor
-                trg_tensor = torch.zeros(trg_max_len, dtype=torch.long)
-                trg_tensor[:len(trg)] = torch.tensor(trg, dtype=torch.long)
-                trg_att_tensor = torch.tensor(trg_att, dtype=torch.long)
+                trg_tensor = torch.tensor(trg, dtype=torch.long)
                 # tensor list
-                self.tensor_list.append((src_tensor, src_att_tensor, trg_tensor, trg_att_tensor))
+                self.tensor_list.append((src_tensor, src_att_tensor, img_path, trg_tensor))
 
         self.num_data = len(self.tensor_list)
 
     def __getitem__(self, index):
-        return self.tensor_list[index]
+        src_tensor, src_att_tensor, img_path, trg_tensor = self.tensor_list[index]
+        # Image load
+        image = io.imread(image_path)
+        transformed_image = self.image_transform(image=image)['image']
+        return src_tensor, src_att_tensor, transformed_image, trg_tensor
 
     def __len__(self):
         return self.num_data

@@ -18,13 +18,14 @@ def main(args):
     total_start_time = time.time()
 
     # Path setting
-    # path_check(args)
+    path_check(args)
 
     if args.preprocessing:
-        if args.data_name.split('_')[:-1]:
-            benchmark_preprocessing(args)
-        else:
-            data_preprocessing(args)
+        # if args.data_name.split('_')[:-1]:
+        #     benchmark_preprocessing(args)
+        # else:
+        #     data_preprocessing(args)
+        data_preprocessing(args)
 
     if args.training:
         if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
@@ -43,7 +44,8 @@ def main(args):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
-    task_list = ['translation','style_transfer','reconstruction','classification','summarization']
+    task_list = ['translation','style_transfer','reconstruction','classification','summarization',
+                 'multi-modal_classification']
     parser.add_argument('--task', default='translation', choices=task_list,
                         help='')
     parser.add_argument('--preprocessing', action='store_true')

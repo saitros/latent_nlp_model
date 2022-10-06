@@ -5,11 +5,11 @@ from sklearn.preprocessing import LabelEncoder
 
 from datasets import load_dataset
 
-def data_split_index(seq):
+def data_split_index(seq, valid_ration: float = 0.1, test_ratio: float = 0.03):
 
     paired_data_len = len(seq)
-    valid_num = int(paired_data_len * 0.1)
-    test_num = int(paired_data_len * 0.03)
+    valid_num = int(paired_data_len * valid_ration)
+    test_num = int(paired_data_len * test_ratio)
 
     valid_index = np.random.choice(paired_data_len, valid_num, replace=False)
     train_index = list(set(range(paired_data_len)) - set(valid_index))
@@ -297,6 +297,9 @@ def total_data_load(args):
         trg_list['valid'] = valid['summary'].tolist()
         trg_list['test'] = test['summary'].tolist()
 
+    #===================================#
+    #===============GLUE================#
+    #===================================#
     
     if ''.join(args.data_name.split('_')[0]) == 'glue' or ''.join(args.data_name.split('_')[:2]) == 'superglue':
         if ''.join(args.data_name.split('_')[0]) == 'glue':
@@ -308,6 +311,41 @@ def total_data_load(args):
 
         return dataset
 
+    #===================================#
+    #====Multi-Modal_Classification=====#
+    #===================================#
+
+    if args.data_name == 'dacon_kotour':
+
+        args.data_path = os.path.join(args.data_path, 'dacon_kotour')
+
+        train = pd.read_csv(os.path.join(args.data_path, 'train.csv'))
+        test = pd.read_csv(os.path.join(args.data_path, 'test.csv'))
+
+        # Image path processing
+        train['img_path'] = train['img_path'].map(lambda t: os.path.join(args.data_path, t.split('/')[-1]))
+        test['img_path'] = test['img_path'].map(lambda t: os.path.join(args.data_path, t.split('/')[-1]))
+        
+        train_index, valid_index, test_index = data_split_index(train, test_ratio=0)
+
+        le = LabelEncoder()
+        le.fit(train.iloc[train_index]['cat3'].values)
+        train['cat3_encoded'] = le.transform(train['cat3'].values)
+
+        src_list['txt'] = dict()
+        src_list['img'] = dict()
+
+        src_list['img']['train'] = [train['img_path'].tolist()[i] for i in train_index]
+        src_list['txt']['train'] = [train['overview'].tolist()[i] for i in train_index]
+        trg_list['train'] = [train['cat3_encoded'].tolist()[i] for i in train_index]
+
+        src_list['img']['valid'] = [train['img_path'].tolist()[i] for i in valid_index]
+        src_list['txt']['valid'] = [train['overview'].tolist()[i] for i in valid_index]
+        trg_list['valid'] = [train['cat3_encoded'].tolist()[i] for i in valid_index]
+
+        src_list['img']['test'] = train['img_path'].tolist()
+        src_list['txt']['test'] = test['overview'].tolist()
+
     if args.src_trg_reverse:
 
         assert args.task != 'classification'
@@ -318,9 +356,6 @@ def total_data_load(args):
 
     return src_list, trg_list
 
-
-if __name__ == '__main__':
-    print('hi')
     ## Process
     # data_preprocess call data_load
     # data_load load dataset and return src, trg

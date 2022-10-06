@@ -10,8 +10,9 @@ from transformers import BartModel, BartConfig
 from ..latent_module.latent import Latent_module 
 
 class custom_Bart(nn.Module):
-    def __init__(self, isPreTrain: bool = True, variational: bool = True, 
-                 variational_mode_dict: dict = dict(),
+    def __init__(self, task: str = 'translation', isPreTrain: bool = True, 
+                 src_language: str = 'en', trg_language: str = 'en',
+                 variational: bool = True, variational_mode_dict: dict = dict(),
                  src_max_len: int = 768, trg_max_len: int = 300,
                  emb_src_trg_weight_sharing: bool = True):
         super().__init__()
@@ -31,9 +32,11 @@ class custom_Bart(nn.Module):
         """
         self.isPreTrain = isPreTrain
         self.variational = variational
+        self.src_language = src_language
+        self.trg_language = trg_language
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
         self.model_config = BartConfig.from_pretrained(f'facebook/bart-large')
-        self.model_config.use_cache = False
+        # self.model_config.use_cache = False
 
         # Token index
         self.pad_idx = self.model_config.pad_token_id

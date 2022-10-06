@@ -27,11 +27,11 @@ def path_check(args):
     if not os.path.exists(args.preprocess_path):
         os.mkdir(args.preprocess_path)
 
-    if not os.path.exists(os.path.join(args.preprocess_path, args.task)):
-        os.mkdir(os.path.join(args.preprocess_path, args.task))
-
     if not os.path.exists(os.path.join(args.preprocess_path, args.data_name)):
         os.mkdir(os.path.join(args.preprocess_path, args.data_name))
+
+    if not os.path.exists(os.path.join(args.preprocess_path, args.data_name, args.tokenizer)):
+        os.mkdir(os.path.join(args.preprocess_path, args.data_name, args.tokenizer))
     
     if not os.path.exists(args.tensorboard_path):
         os.mkdir(args.tensorboard_path)

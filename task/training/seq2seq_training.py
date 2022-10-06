@@ -15,7 +15,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 # Import custom modules
-from model.dataset import Seq2SeqDataset
+from model.dataset import Seq2SeqDataset, Seq2LabelDataset, MutlimodalClassificationDataset
 from model.custom_transformer.transformer import Transformer
 from model.custom_plm.T5 import custom_T5
 from model.custom_plm.bart import custom_Bart
@@ -72,6 +72,14 @@ def seq2seq_training(args):
             train_trg_attention_mask = f.get('train_src_attention_mask')[:]
             valid_trg_input_ids = f.get('valid_src_input_ids')[:]
             valid_trg_attention_mask = f.get('valid_src_attention_mask')[:]
+        elif args.task in ['classification']:
+            train_trg_list = f.get('train_label')[:]
+            valid_trg_list = f.get('valid_label')[:]
+        elif args.task in ['multi-modal_classification']:
+            train_src_img_path = f.get('train_src_img_path')[:]
+            valid_src_img_path = f.get('valid_src_img_path')[:]
+            train_trg_list = f.get('train_label')[:]
+            valid_trg_list = f.get('valid_label')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
@@ -108,7 +116,8 @@ def seq2seq_training(args):
         variational_mode_dict['d_latent'] = args.d_latent
 
     if args.model_type == 'custom_transformer':
-        model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
+        model = Transformer(task=args.task,
+                            src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
                             pad_idx=args.pad_id, bos_idx=args.bos_id, eos_idx=args.eos_id,
                             d_model=args.d_model, d_embedding=args.d_embedding, n_head=args.n_head,
                             dim_feedforward=args.dim_feedforward,
@@ -128,7 +137,8 @@ def seq2seq_training(args):
     #                       decoder_full_model=True)
     #     tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
-        model = custom_Bart(isPreTrain=args.isPreTrain, variational=args.variational,
+        model = custom_Bart(task=args.task,
+                            isPreTrain=args.isPreTrain, variational=args.variational,
                             variational_mode_dict=variational_mode_dict,
                             src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
@@ -136,16 +146,40 @@ def seq2seq_training(args):
     model = model.to(device)
 
     # 2) Dataloader setting
-    dataset_dict = {
-        'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
-                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-        'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-    }
+    if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+        dataset_dict = {
+            'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                    trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
+                                    src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                    pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+            'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                    trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
+                                    src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                    pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+        }
+    elif args.task in ['classification']:
+        dataset_dict = {
+            'train': Seq2LabelDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                      trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
+                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+            'valid': Seq2LabelDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                      trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
+                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+        }
+    elif args.task in ['multi-modal_classification']:
+        dataset_dict = {
+            'train': MutlimodalClassificationDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                                     src_img_path=train_src_img_path, trg_list=train_trg_list,
+                                                     src_max_len=args.src_max_len,
+                                                     pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+            'valid': MutlimodalClassificationDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                                     src_img_path=valid_src_img_path, trg_list=valid_trg_list,
+                                                     src_max_len=args.src_max_len,
+                                                     pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+        }
+
     dataloader_dict = {
         'train': DataLoader(dataset_dict['train'], drop_last=True,
                             batch_size=args.batch_size, shuffle=True, pin_memory=True,
@@ -191,7 +225,7 @@ def seq2seq_training(args):
                 model.train()
             if phase == 'valid':
                 write_log(logger, 'Validation start...')
-                val_seq_loss = 0
+                val_ce_loss = 0
                 val_latent_loss = 0
                 val_total_loss = 0
                 val_acc = 0
@@ -202,15 +236,36 @@ def seq2seq_training(args):
                 optimizer.zero_grad(set_to_none=True)
 
                 # Input, output setting
-                src_sequence = batch_iter[0]
-                src_att = batch_iter[1]
-                trg_sequence = batch_iter[2]
-                trg_att = batch_iter[3]
+                if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+                    src_sequence = batch_iter[0]
+                    src_att = batch_iter[1]
+                    trg_sequence = batch_iter[2]
+                    trg_att = batch_iter[3]
 
-                src_sequence = src_sequence.to(device, non_blocking=True)
-                src_att = src_att.to(device, non_blocking=True)
-                trg_sequence = trg_sequence.to(device, non_blocking=True)
-                trg_att = trg_att.to(device, non_blocking=True)
+                    src_sequence = src_sequence.to(device, non_blocking=True)
+                    src_att = src_att.to(device, non_blocking=True)
+                    trg_sequence = trg_sequence.to(device, non_blocking=True)
+                    trg_att = trg_att.to(device, non_blocking=True)
+
+                elif args.task in ['classification']:
+                    src_sequence = batch_iter[0]
+                    src_att = batch_iter[1]
+                    trg_label = batch_iter[2]
+
+                    src_sequence = src_sequence.to(device, non_blocking=True)
+                    src_att = src_att.to(device, non_blocking=True)
+                    trg_label = trg_label.to(device, non_blocking=True)
+
+                elif args.task in ['multi-modal_classification']:
+                    src_sequence = batch_iter[0]
+                    src_att = batch_iter[1]
+                    src_img = batch_iter[2]
+                    trg_label = batch_iter[3]
+
+                    src_sequence = src_sequence.to(device, non_blocking=True)
+                    src_att = src_att.to(device, non_blocking=True)
+                    trg_sequence = trg_sequence.to(device, non_blocking=True)
+                    trg_att = trg_att.to(device, non_blocking=True)
 
                 # Output pre-processing
                 trg_sequence_gold = trg_sequence[:, 1:]
@@ -221,8 +276,8 @@ def seq2seq_training(args):
                 if phase == 'train':
                     with autocast():
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
-                                                    trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
-                                                    non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
+                                                     trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
+                                                     non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))
                         seq_loss = label_smoothing_loss(predicted, trg_sequence_gold, 
                                                         trg_pad_idx=model.pad_idx,
@@ -271,7 +326,7 @@ def seq2seq_training(args):
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         seq_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
                         total_loss = seq_loss + dist_loss
-                    val_seq_loss += seq_loss.item()
+                    val_ce_loss += seq_loss.item()
                     val_latent_loss += dist_loss.item()
                     val_total_loss += total_loss.item()
                     val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
@@ -279,26 +334,26 @@ def seq2seq_training(args):
             if phase == 'valid':
 
                 if args.scheduler == 'reduce_valid':
-                    scheduler.step(val_seq_loss)
+                    scheduler.step(val_ce_loss)
                 if args.scheduler == 'lambda':
                     scheduler.step()
 
-                val_seq_loss /= len(dataloader_dict[phase])
+                val_ce_loss /= len(dataloader_dict[phase])
                 val_latent_loss /= len(dataloader_dict[phase])
                 val_total_loss /= len(dataloader_dict[phase])
                 val_acc /= len(dataloader_dict[phase])
-                write_log(logger, 'Validation Sequence Loss: %3.3f' % val_seq_loss)
+                write_log(logger, 'Validation Sequence Loss: %3.3f' % val_ce_loss)
                 write_log(logger, 'Validation Latent Loss: %3.3f' % val_latent_loss)
                 write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
 
                 if args.use_tensorboard:
-                    tb_writer.add_scalar('VALID/SEQ_Loss', val_seq_loss, epoch)
+                    tb_writer.add_scalar('VALID/SEQ_Loss', val_ce_loss, epoch)
                     tb_writer.add_scalar('VALID/Latent_Loss', val_latent_loss, epoch)
                     tb_writer.add_scalar('VALID/Total_Loss', val_total_loss, epoch)
                     tb_writer.add_scalar('VALID/Accuracy', val_acc * 100, epoch)
 
                 save_file_name = model_save_name(args)
-                if val_seq_loss < best_val_loss:
+                if val_ce_loss < best_val_loss:
                     write_log(logger, 'Checkpoint saving...')
                     torch.save({
                         'epoch': epoch,
@@ -307,7 +362,7 @@ def seq2seq_training(args):
                         'scheduler': scheduler.state_dict(),
                         'scaler': scaler.state_dict()
                     }, save_file_name)
-                    best_val_loss = val_seq_loss
+                    best_val_loss = val_ce_loss
                     best_epoch = epoch
                 else:
                     else_log = f'Still {best_epoch} epoch Loss({round(best_val_loss, 2)}) is better...'

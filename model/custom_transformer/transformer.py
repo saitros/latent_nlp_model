@@ -12,7 +12,8 @@ from .embedding import TransformerEmbedding
 from ..latent_module.latent import Latent_module 
 
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_num: int, trg_vocab_num: int, 
+    def __init__(self, task: str = 'translation', 
+                 src_vocab_num: int = 8000, trg_vocab_num: int = 8000, 
                  pad_idx: int = 0, bos_idx: int = 1, eos_idx: int = 2, 
                  d_model: int = 512, d_embedding: int = 256, n_head: int = 8, 
                  dim_feedforward: int = 2048, num_common_layer: int = 10, 

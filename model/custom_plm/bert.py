@@ -6,8 +6,12 @@ import torch.nn as nn
 from transformers import BertForSequenceClassification, BertTokenizer, BertConfig, BertModel
 from model.custom_transformer.latent_module import Latent_module
 
-class custom_BERT(nn.Module):
-    def __init__(self, isPreTrain, d_latent, variational_mode, decoder_full_model, device):
+class custom_Bert(nn.Module):
+    def __init__(self, task: str = 'classification', isPreTrain: bool = True, 
+                 src_language: str = 'en', trg_language: str = 'en',
+                 variational: bool = True, variational_mode_dict: dict = dict(),
+                 src_max_len: int = 768, trg_max_len: int = 300,
+                 emb_src_trg_weight_sharing: bool = True):
         super().__init__()
 
         """
@@ -23,9 +27,18 @@ class custom_BERT(nn.Module):
             log_var (torch.Tensor): log variance of latent vector
             z (torch.Tensor): sampled latent vector
         """
-        self.d_latent = d_latent
         self.isPreTrain = isPreTrain
-        self.device = device
+        self.variational = variational
+        self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
+
+        self.src_language = src_language
+        self.trg_language = trg_language
+        if self.src_language == 'en':
+            self.model_config = BertConfig.from_pretrained('bert-base-cased')
+        elif self.src_language == 'kr':
+            self.model_config = BertConfig.from_pretrained('beomi/kcbert-base')
+        elif self.src_language == 'de':
+            self.model_config = BertConfig.from_pretrained('bert-base-german-cased')
 
         self.tokenizer = BertTokenizer.from_pretrained('KETI-AIR/ke-t5-base')
         if self.isPreTrain:
