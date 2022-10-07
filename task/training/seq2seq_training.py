@@ -19,6 +19,7 @@ from model.dataset import Seq2SeqDataset, Seq2LabelDataset, MutlimodalClassifica
 from model.custom_transformer.transformer import Transformer
 from model.custom_plm.T5 import custom_T5
 from model.custom_plm.bart import custom_Bart
+from model.custom_plm.bert import custom_Bert
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 from task.utils import label_smoothing_loss, model_save_name
@@ -143,6 +144,13 @@ def seq2seq_training(args):
                             src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
+    elif args.model_type == 'bert':
+        model = custom_Bert(task=args.task,
+                            isPreTrain=args.isPreTrain, variational=args.variational,
+                            variational_mode_dict=variational_mode_dict,
+                            src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                            emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
+        tgt_subsqeunt_mask = None
     model = model.to(device)
 
     # 2) Dataloader setting
@@ -241,16 +249,27 @@ def seq2seq_training(args):
                     src_att = batch_iter[1]
                     trg_sequence = batch_iter[2]
                     trg_att = batch_iter[3]
+                    src_img = None
+                    trg_label = None
 
                     src_sequence = src_sequence.to(device, non_blocking=True)
                     src_att = src_att.to(device, non_blocking=True)
                     trg_sequence = trg_sequence.to(device, non_blocking=True)
                     trg_att = trg_att.to(device, non_blocking=True)
 
+                    # Output pre-processing
+                    trg_sequence_gold = trg_sequence[:, 1:]
+                    non_pad = trg_sequence_gold != model.pad_idx
+                    trg_sequence_gold = trg_sequence_gold[non_pad].contiguous().view(-1)
+
                 elif args.task in ['classification']:
                     src_sequence = batch_iter[0]
                     src_att = batch_iter[1]
                     trg_label = batch_iter[2]
+                    src_img = None
+                    trg_sequence = None
+                    trg_att = None
+                    non_pad = None
 
                     src_sequence = src_sequence.to(device, non_blocking=True)
                     src_att = src_att.to(device, non_blocking=True)
@@ -261,21 +280,20 @@ def seq2seq_training(args):
                     src_att = batch_iter[1]
                     src_img = batch_iter[2]
                     trg_label = batch_iter[3]
+                    trg_sequence = None
+                    trg_att = None
+                    non_pad = None
 
                     src_sequence = src_sequence.to(device, non_blocking=True)
                     src_att = src_att.to(device, non_blocking=True)
                     trg_sequence = trg_sequence.to(device, non_blocking=True)
                     trg_att = trg_att.to(device, non_blocking=True)
 
-                # Output pre-processing
-                trg_sequence_gold = trg_sequence[:, 1:]
-                non_pad = trg_sequence_gold != model.pad_idx
-                trg_sequence_gold = trg_sequence_gold[non_pad].contiguous().view(-1)
-
                 # Train
                 if phase == 'train':
                     with autocast():
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
+                                                     src_img=src_img, trg_label=trg_label,
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         predicted = predicted.view(-1, predicted.size(-1))

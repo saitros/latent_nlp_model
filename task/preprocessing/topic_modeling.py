@@ -5,6 +5,8 @@ from contextualized_topic_models.models.ctm import CombinedTM
 from contextualized_topic_models.utils.data_preparation import TopicModelDataPreparation
 from contextualized_topic_models.utils.preprocessing import WhiteSpacePreprocessingStopwords as sp
 
+from task.preprocessing.data_load import total_data_load
+
 def topic_(args):
 
     start_time = time.time()
@@ -45,4 +47,4 @@ def topic_(args):
     ctm = CombinedTM(bow_size=len(qt.vocab), contextual_size=768, n_components=50) # 50 topics
     ctm.fit(training_dataset) # run the model
 
-    ctm.get_topics(2)
+    ctm.get_topics()

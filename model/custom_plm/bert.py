@@ -63,11 +63,11 @@ class custom_Bert(nn.Module):
                 self.img_embedding = img_model.embeddings
 
     def forward(self, src_input_ids, src_attention_mask, src_img,
-                trg_input_ids, trg_attention_mask, trg_label,
+                trg_label, trg_input_ids, trg_attention_mask,
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Text Embedding
-        encoder_out = self.encoder1_embedding(src_input_ids)
+        txt_embed = self.txt_embedding(src_input_ids)
         new_attention_mask = self.model1.get_extended_attention_mask(src_attention_mask, 
                                                                      src_attention_mask.shape, self.device)
         for i in range(len(self.encoder1_model)):
