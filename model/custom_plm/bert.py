@@ -4,7 +4,7 @@ import torch.nn as nn
 # Import Huggingface
 # T5
 from transformers import BertForSequenceClassification, BertTokenizer, BertConfig, BertModel
-from model.custom_transformer.latent_module import Latent_module
+from ..latent_module.latent import Latent_module 
 
 class custom_Bert(nn.Module):
     def __init__(self, task: str = 'classification', num_class: int = None,

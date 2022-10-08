@@ -1,4 +1,6 @@
 import time
+import nltk
+import logging
 from nltk.corpus import stopwords as stop_words
 
 from contextualized_topic_models.models.ctm import CombinedTM
@@ -6,8 +8,9 @@ from contextualized_topic_models.utils.data_preparation import TopicModelDataPre
 from contextualized_topic_models.utils.preprocessing import WhiteSpacePreprocessingStopwords as sp
 
 from task.preprocessing.data_load import total_data_load
+from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 
-def topic_(args):
+def topic_modeling(args):
 
     start_time = time.time()
 

@@ -3,6 +3,7 @@ import time
 import argparse
 # Import custom modules
 from task.preprocessing.data_preprocessing import data_preprocessing, benchmark_preprocessing
+from task.preprocessing.topic_modeling import topic_modeling
 from task.training.seq2label_training import seq2label_training
 from task.training.seq2seq_training import seq2seq_training
 from task.testing.seq2seq_testing import seq2seq_testing
@@ -27,6 +28,9 @@ def main(args):
         #     data_preprocessing(args)
         data_preprocessing(args)
 
+    if args.topic_modeling:
+        topic_modeling(args)
+
     if args.training:
         if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
             seq2seq_training(args)
@@ -49,6 +53,7 @@ if __name__=='__main__':
     parser.add_argument('--task', default='translation', choices=task_list,
                         help='')
     parser.add_argument('--preprocessing', action='store_true')
+    parser.add_argument('--topic_modeling', action='store_true')
     parser.add_argument('--training', action='store_true')
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
@@ -61,9 +66,9 @@ if __name__=='__main__':
                         help='Data name; Default is WMT2016_Multimodal')
     parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
                         help='; Default is 3.0.0')
-    parser.add_argument('--model_save_path', default='/HDD/kyohoon/model_checkpoint/latent', type=str,
+    parser.add_argument('--model_save_path', default='/HDD/kyohoon1/model_checkpoint/latent', type=str,
                         help='Model checkpoint file path')
-    parser.add_argument('--result_path', default='/HDD/kyohoon/results/latent', type=str,
+    parser.add_argument('--result_path', default='/HDD/kyohoon1/results/latent', type=str,
                         help='Results file path')
     # Preprocessing setting
     parser.add_argument('--tokenizer', default='spm', choices=[
