@@ -42,9 +42,14 @@ def topic_(args):
     sp_test_out = sp(src_list['test'], stopwords_list=stopwords).preprocess()
 
     qt = TopicModelDataPreparation("all-mpnet-base-v2")
-    training_dataset = qt.fit(text_for_contextual=sp_train_out[0], text_for_bow=sp_train_out[1])
+    train_dataset = qt.fit(text_for_contextual=sp_train_out[0], text_for_bow=sp_train_out[1])
+    valid_dataset = qt.transform(text_for_contextual=sp_valid_out[0], text_for_bow=sp_valid_out[1])
+    test_dataset = qt.transform(text_for_contextual=sp_test_out[0], text_for_bow=sp_test_out[1])
 
-    ctm = CombinedTM(bow_size=len(qt.vocab), contextual_size=768, n_components=50) # 50 topics
-    ctm.fit(training_dataset) # run the model
+    ctm = CombinedTM(bow_size=len(qt.vocab), contextual_size=768, n_components=args.n_components, num_epochs=30) # 7 topics
+    ctm.fit(train_dataset) # run the model
+    ctm.save(models_dir=args.preprocess_path) # save the model
 
-    ctm.get_topics()
+    topic_keywords_list = ctm.get_topic_lists(7)
+    for i in range(args.n_components):
+        write_log(logger, topic_keywords_list[i])

@@ -95,6 +95,9 @@ if __name__=='__main__':
     parser.add_argument('--with_eda', action='store_true')
     parser.add_argument('--src_trg_identical', default=False, type=str2bool,
                         help='Use source and target tokenizer same; Default is False')
+    # Topic-modeling setting
+    parser.add_argument('--n_components', default=10, type=int,
+                        help='')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
