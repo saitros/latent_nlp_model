@@ -7,6 +7,8 @@ import pickle
 import logging
 from tqdm import tqdm
 from time import time
+import albumentations as A
+from albumentations.pytorch.transforms import ToTensorV2
 # Import PyTorch
 import torch
 from torch.nn import functional as F
@@ -56,7 +58,7 @@ def seq2seq_training(args):
     if args.tokenizer == 'spm':
         save_name = f'processed_{args.task}_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
     else:
-        save_name = f'processed_{args.task}_{args.tokenizer}.hdf5'
+        save_name = f'processed_{args.task}.hdf5'
 
     with h5py.File(os.path.join(save_path, save_name), 'r') as f:
         train_src_input_ids = f.get('train_src_input_ids')[:]
@@ -93,6 +95,8 @@ def seq2seq_training(args):
             trg_language = data_['trg_language']
         elif args.task in ['reconstruction']:
             trg_vocab_num = src_vocab_num
+        else:
+            trg_vocab_num = 0
         del data_
 
     gc.enable()
@@ -105,8 +109,8 @@ def seq2seq_training(args):
     # 1) Model initiating
     write_log(logger, 'Instantiating model...')
 
+    variational_mode_dict = dict()
     if args.variational:
-        variational_mode_dict = dict()
         variational_mode_dict['variational_model'] = args.variational_model
         variational_mode_dict['variational_token_processing'] = args.variational_token_processing
         variational_mode_dict['variational_with_target'] = args.variational_with_target
@@ -177,15 +181,20 @@ def seq2seq_training(args):
                                       pad_idx=model.pad_idx, eos_idx=model.eos_idx),
         }
     elif args.task in ['multi-modal_classification']:
+        image_transform = A.Compose([
+                A.Resize(224, 224),
+                A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0, always_apply=False, p=1.0),
+                ToTensorV2(),
+            ])
         dataset_dict = {
             'train': MutlimodalClassificationDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
                                                      src_img_path=train_src_img_path, trg_list=train_trg_list,
                                                      src_max_len=args.src_max_len,
-                                                     pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+                                                     image_transform=image_transform),
             'valid': MutlimodalClassificationDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
                                                      src_img_path=valid_src_img_path, trg_list=valid_trg_list,
                                                      src_max_len=args.src_max_len,
-                                                     pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+                                                     image_transform=image_transform),
         }
 
     dataloader_dict = {
@@ -286,8 +295,7 @@ def seq2seq_training(args):
 
                     src_sequence = src_sequence.to(device, non_blocking=True)
                     src_att = src_att.to(device, non_blocking=True)
-                    trg_sequence = trg_sequence.to(device, non_blocking=True)
-                    trg_att = trg_att.to(device, non_blocking=True)
+                    trg_label = trg_label.to(device, non_blocking=True)
 
                 # Train
                 if phase == 'train':
@@ -340,6 +348,7 @@ def seq2seq_training(args):
                 if phase == 'valid':
                     with torch.no_grad():
                         predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
+                                                     src_img=src_img, trg_label=trg_label,
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
                         seq_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)

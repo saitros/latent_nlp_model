@@ -1,6 +1,8 @@
 import torch
 from torch.utils.data.dataset import Dataset
+
 import albumentations as A
+from skimage import io
 
 class Seq2SeqDataset(Dataset):
     def __init__(self, src_list, src_att_list, trg_list, trg_att_list,
@@ -75,7 +77,7 @@ class MutlimodalClassificationDataset(Dataset):
     def __getitem__(self, index):
         src_tensor, src_att_tensor, img_path, trg_tensor = self.tensor_list[index]
         # Image load
-        image = io.imread(image_path)
+        image = io.imread(img_path.decode('utf-8'))
         transformed_image = self.image_transform(image=image)['image']
         return src_tensor, src_att_tensor, transformed_image, trg_tensor
 

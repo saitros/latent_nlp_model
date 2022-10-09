@@ -323,8 +323,8 @@ def total_data_load(args):
         test = pd.read_csv(os.path.join(args.data_path, 'test.csv'))
 
         # Image path processing
-        train['img_path'] = train['img_path'].map(lambda t: os.path.join(args.data_path, t.split('/')[-1]))
-        test['img_path'] = test['img_path'].map(lambda t: os.path.join(args.data_path, t.split('/')[-1]))
+        train['img_path'] = train['img_path'].map(lambda t: os.path.join(args.data_path, 'image/train', t.split('/')[-1]))
+        test['img_path'] = test['img_path'].map(lambda t: os.path.join(args.data_path, 'image/test', t.split('/')[-1]))
         
         train_index, valid_index, test_index = data_split_index(train, test_ratio=0)
 
