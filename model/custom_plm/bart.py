@@ -76,7 +76,8 @@ class custom_Bart(nn.Module):
                                                latent_add_encoder_out=self.latent_add_encoder_out,
                                                z_var=self.z_var, src_max_len=src_max_len, trg_max_len=trg_max_len)
 
-    def forward(self, src_input_ids, src_attention_mask, trg_input_ids, trg_attention_mask, 
+    def forward(self, src_input_ids, src_attention_mask, src_img,
+                trg_label, trg_input_ids, trg_attention_mask,
                 non_pad_position=None, tgt_subsqeunt_mask=None):
 
         # Pre_setting for variational model and translation task
