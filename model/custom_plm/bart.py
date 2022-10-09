@@ -35,7 +35,7 @@ class custom_Bart(nn.Module):
         self.src_language = src_language
         self.trg_language = trg_language
         self.emb_src_trg_weight_sharing = emb_src_trg_weight_sharing
-        self.model_config = BartConfig.from_pretrained(f'facebook/bart-large')
+        self.model_config = BartConfig.from_pretrained(f'ainize/bart-base-cnn')
         # self.model_config.use_cache = False
 
         # Token index
@@ -44,7 +44,7 @@ class custom_Bart(nn.Module):
         self.eos_idx = self.model_config.eos_token_id
 
         if self.isPreTrain:
-            self.model = BartModel.from_pretrained(f'facebook/bart-large')
+            self.model = BartModel.from_pretrained(f'ainize/bart-base-cnn')
         else:
             self.model = BartModel(config=self.model_config)
 

@@ -1,3 +1,5 @@
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import time
 import nltk
 import logging
@@ -29,7 +31,7 @@ def topic_modeling(args):
     #=============Data Load=============#
     #===================================#
 
-    write_log(logger, 'Start preprocessing!')
+    write_log(logger, 'Data Loading...')
 
     nltk.download('stopwords')
     stopwords = list(stop_words.words("english"))
@@ -40,6 +42,8 @@ def topic_modeling(args):
     #==========Topic Modeling===========#
     #===================================#
 
+    write_log(logger, 'Start preprocessing...')
+
     sp_train_out = sp(src_list['train'], stopwords_list=stopwords).preprocess()
     sp_valid_out = sp(src_list['valid'], stopwords_list=stopwords).preprocess()
     sp_test_out = sp(src_list['test'], stopwords_list=stopwords).preprocess()
@@ -49,7 +53,9 @@ def topic_modeling(args):
     valid_dataset = qt.transform(text_for_contextual=sp_valid_out[0], text_for_bow=sp_valid_out[1])
     test_dataset = qt.transform(text_for_contextual=sp_test_out[0], text_for_bow=sp_test_out[1])
 
-    ctm = CombinedTM(bow_size=len(qt.vocab), contextual_size=768, n_components=args.n_components, num_epochs=30) # 7 topics
+    write_log(logger, 'Start topc-model training...')
+
+    ctm = CombinedTM(bow_size=len(qt.vocab), contextual_size=768, n_components=args.n_components, num_epochs=5) # 7 topics
     ctm.fit(train_dataset) # run the model
     ctm.save(models_dir=args.preprocess_path) # save the model
 
