@@ -149,8 +149,9 @@ def seq2seq_training(args):
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
         tgt_subsqeunt_mask = None
     elif args.model_type == 'bert':
-        model = custom_Bert(task=args.task,
+        model = custom_Bert(task=args.task, num_class=128, # Need to refactoring
                             isPreTrain=args.isPreTrain, variational=args.variational,
+                            src_language=src_language,
                             variational_mode_dict=variational_mode_dict,
                             src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
@@ -295,6 +296,7 @@ def seq2seq_training(args):
 
                     src_sequence = src_sequence.to(device, non_blocking=True)
                     src_att = src_att.to(device, non_blocking=True)
+                    src_img = src_img.to(device, non_blocking=True)
                     trg_label = trg_label.to(device, non_blocking=True)
 
                 # Train
