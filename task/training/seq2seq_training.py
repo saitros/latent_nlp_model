@@ -306,11 +306,14 @@ def seq2seq_training(args):
                                                      src_img=src_img, trg_label=trg_label,
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        predicted = predicted.view(-1, predicted.size(-1))
-                        seq_loss = label_smoothing_loss(predicted, trg_sequence_gold, 
+                        if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+                            predicted = predicted.view(-1, predicted.size(-1))
+                            loss = label_smoothing_loss(predicted, trg_sequence_gold, 
                                                         trg_pad_idx=model.pad_idx,
                                                         smoothing_eps=args.label_smoothing_eps)
-                        total_loss = seq_loss + dist_loss
+                        elif 'classification' in args.task:
+                            loss = F.cross_entropy(predicted, trg_label)
+                        total_loss = loss + dist_loss
 
                     scaler.scale(total_loss).backward()
                     if args.clip_grad_norm > 0:
@@ -326,21 +329,29 @@ def seq2seq_training(args):
 
                     # Print loss value only training
                     if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
-                        acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
-                        iter_log = "[Epoch:%03d][%03d/%03d] train_seq_loss:%03.2f | train_latent_loss:%03.2f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
+                        if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+                            acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                            loss = loss.item()
+                            dist_loss = dist_loss.item()
+                        elif 'classification' in args.task:
+                            acc = (predicted.max(dim=1)[1] == trg_label).sum() / len(trg_label)
+                        iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.2f | train_latent_loss:%03.2f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
                             (epoch, i, len(dataloader_dict['train']), 
-                            seq_loss.item(), dist_loss.item(), acc*100, optimizer.param_groups[0]['lr'], 
+                            loss, dist_loss, acc*100, optimizer.param_groups[0]['lr'], 
                             (time() - start_time_e) / 60)
                         write_log(logger, iter_log)
                         freq = 0
                     freq += 1
 
                     if args.use_tensorboard:
-                        acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                        if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+                            acc = (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                        elif 'classification' in args.task:
+                            acc = (predicted.max(dim=1)[1] == trg_label).sum() / len(trg_label)
                         
-                        tb_writer.add_scalar('TRAIN/Total_Loss', total_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        tb_writer.add_scalar('TRAIN/SEQ_Loss', seq_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
-                        tb_writer.add_scalar('TRAIN/Latent_Loss', dist_loss.item(), (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('TRAIN/Total_Loss', total_loss, (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('TRAIN/Loss', loss, (epoch-1) * len(dataloader_dict['train']) + i)
+                        tb_writer.add_scalar('TRAIN/Latent_Loss', dist_loss, (epoch-1) * len(dataloader_dict['train']) + i)
                         tb_writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
                         tb_writer.add_scalar('USAGE/CPU_Usage', psutil.cpu_percent(), (epoch-1) * len(dataloader_dict['train']) + i)
                         tb_writer.add_scalar('USAGE/RAM_Usage', psutil.virtual_memory().percent, (epoch-1) * len(dataloader_dict['train']) + i)
@@ -353,12 +364,19 @@ def seq2seq_training(args):
                                                      src_img=src_img, trg_label=trg_label,
                                                      trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
                                                      non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        seq_loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
-                        total_loss = seq_loss + dist_loss
-                    val_ce_loss += seq_loss.item()
-                    val_latent_loss += dist_loss.item()
-                    val_total_loss += total_loss.item()
-                    val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                        if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+                            loss = F.cross_entropy(predicted, trg_sequence_gold, ignore_index=model.pad_idx)
+                        elif 'classification' in args.task:
+                            loss = F.cross_entropy(predicted, trg_label)
+                        total_loss = loss + dist_loss
+                    val_ce_loss += loss
+                    val_latent_loss += dist_loss
+                    val_total_loss += total_loss
+                    if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+                        val_acc += (predicted.max(dim=1)[1] == trg_sequence_gold).sum() / len(trg_sequence_gold)
+                    elif 'classification' in args.task:
+                        val_acc += (predicted.max(dim=1)[1] == trg_label).sum() / len(trg_label)
+                    
 
             if phase == 'valid':
 
@@ -394,7 +412,7 @@ def seq2seq_training(args):
                     best_val_loss = val_ce_loss
                     best_epoch = epoch
                 else:
-                    else_log = f'Still {best_epoch} epoch Loss({round(best_val_loss, 2)}) is better...'
+                    else_log = f'Still {best_epoch} epoch Loss({round(best_val_loss.item(), 2)}) is better...'
                     write_log(logger, else_log)
 
     # 3) Print results
