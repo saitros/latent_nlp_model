@@ -54,6 +54,7 @@ class custom_Bert(nn.Module):
         self.txt_embedding = self.txt_model.embeddings
         self.encoder = self.txt_model.encoder
         self.pooler = self.txt_model.pooler
+        self.prediction_head = nn.Linear(768, num_class)
 
         if 'classification' in self.task:
             self.cls_linear = nn.Linear(self.txt_model.pooler.dense.out_features, num_class)
@@ -68,24 +69,24 @@ class custom_Bert(nn.Module):
         # Embedding
         txt_embed = self.txt_embedding(src_input_ids)
         img_embed = self.img_embedding(src_img)
-        input_emb = torch.cat((img_embed, txt_embed), axis=1)
-        
-        new_attention_mask = self.txt_embedding.get_extended_attention_mask(src_attention_mask, 
-                                                                            src_attention_mask.shape, src_attention_mask.device)
-        for i in range(len(self.encoder)):
-            encoder_out, _ = self.encoder[i](hidden_states=encoder_out, 
-                                             attention_mask=new_attention_mask)
+        encoder_out = torch.cat((img_embed, txt_embed), axis=1)
 
-        encoder_out = self.encoder1_final_layer_norm(encoder_out)
-        encoder_out = self.encoder1_dropout(encoder_out)
+        # Attention mask processing
+        img_attention_mask = torch.ones(src_input_ids.size(0), 197, dtype=torch.long, device=src_attention_mask.device) # vit-226's patch length is 197
+        src_attention_mask = torch.cat((img_attention_mask, src_attention_mask), axis=1)
+        new_attention_mask = self.txt_model.get_extended_attention_mask(src_attention_mask, 
+                                                                        src_attention_mask.shape, src_attention_mask.device)
+
+        encoder_out = self.encoder(hidden_states=encoder_out, 
+                                   attention_mask=new_attention_mask)[0]
 
         # Latent
-        if self.variational_mode != 0:
+        if self.variational:
             # Target sentence latent mapping
             with torch.no_grad():
                 encoder_out_trg = self.encoder1_embedding(trg_input_ids)
                 new_attention_mask2 = self.model1.get_extended_attention_mask(trg_attention_mask, 
-                                                                             trg_attention_mask.shape, self.device)
+                                                                              trg_attention_mask.shape, self.device)
                 for i in range(len(self.encoder1_model)):
                     encoder_out_trg, _ = self.encoder1_model[i](hidden_states=encoder_out_trg, 
                                                                 attention_mask=new_attention_mask2)
@@ -95,14 +96,8 @@ class custom_Bert(nn.Module):
             dist_loss = 0
 
         # Encoder2 Forward
-        if self.decoder_full_model:
-            model_out = self.model2(inputs_embeds=encoder_out,
-                                    attention_mask=src_attention_mask,
-                                    decoder_input_ids=trg_input_ids,
-                                    decoder_attention_mask=trg_attention_mask)
-            model_out = model_out['logits']
-        else:
-            model_out, _ = self.decoder_model(encoder_out)
-            model_out = self.lm_head(model_out)
+        encoder_out = self.pooler(encoder_out)
+        # encoder_out = encoder_out[:,-1,:]
+        model_out = self.prediction_head(encoder_out)
 
         return model_out, dist_loss

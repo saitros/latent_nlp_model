@@ -63,14 +63,17 @@ def seq2seq_testing(args):
         if args.task in ['translation', 'style_transfer', 'summarization']:
             test_trg_input_ids = f.get('test_trg_input_ids')[:]
             test_trg_attention_mask = f.get('test_trg_attention_mask')[:]
+        elif args.task in ['multi-modal_classification']:
+            test_src_img_path = f.get('test_src_img_path')[:]
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
         src_word2id = data_['src_word2id']
-        trg_word2id = data_['trg_word2id']
-        trg_id2word = {v: k for k, v in trg_word2id.items()}
         src_vocab_num = len(src_word2id)
-        trg_vocab_num = len(trg_word2id)
+        if args.task in ['translation', 'style_transfer', 'summarization']:
+            trg_word2id = data_['trg_word2id']
+            trg_id2word = {v: k for k, v in trg_word2id.items()}
+            trg_vocab_num = len(trg_word2id)
         del data_
 
     gc.enable()
@@ -81,9 +84,10 @@ def seq2seq_testing(args):
     #===================================#
 
     # 1) Model initiating
-    write_log(logger, 'Loading model...')
+    write_log(logger, 'Instantiating model...')
+
+    variational_mode_dict = dict()
     if args.variational:
-        variational_mode_dict = dict()
         variational_mode_dict['variational_model'] = args.variational_model
         variational_mode_dict['variational_token_processing'] = args.variational_token_processing
         variational_mode_dict['variational_with_target'] = args.variational_with_target
@@ -94,7 +98,8 @@ def seq2seq_testing(args):
         variational_mode_dict['d_latent'] = args.d_latent
 
     if args.model_type == 'custom_transformer':
-        model = Transformer(src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
+        model = Transformer(task=args.task,
+                            src_vocab_num=src_vocab_num, trg_vocab_num=trg_vocab_num,
                             pad_idx=args.pad_id, bos_idx=args.bos_id, eos_idx=args.eos_id,
                             d_model=args.d_model, d_embedding=args.d_embedding, n_head=args.n_head,
                             dim_feedforward=args.dim_feedforward,
@@ -114,7 +119,16 @@ def seq2seq_testing(args):
     #                       decoder_full_model=True)
     #     tgt_subsqeunt_mask = None
     elif args.model_type == 'bart':
-        model = custom_Bart(isPreTrain=args.isPreTrain, variational=args.variational,
+        model = custom_Bart(task=args.task,
+                            isPreTrain=args.isPreTrain, variational=args.variational,
+                            variational_mode_dict=variational_mode_dict,
+                            src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                            emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)
+        tgt_subsqeunt_mask = None
+    elif args.model_type == 'bert':
+        model = custom_Bert(task=args.task, num_class=128, # Need to refactoring
+                            isPreTrain=args.isPreTrain, variational=args.variational,
+                            src_language=src_language,
                             variational_mode_dict=variational_mode_dict,
                             src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
                             emb_src_trg_weight_sharing=args.emb_src_trg_weight_sharing)

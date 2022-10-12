@@ -32,7 +32,7 @@ def main(args):
         topic_modeling(args)
 
     if args.training:
-        if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization']:
+        if args.task in ['translation', 'style_transfer', 'reconstruction', 'summarization', 'multi-modal_classification']:
             seq2seq_training(args)
 
         if args.task in ['classification']:
