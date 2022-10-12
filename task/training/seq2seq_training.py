@@ -160,39 +160,52 @@ def seq2seq_training(args):
 
     # 2) Dataloader setting
     if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
-        dataset_dict = {
-            'train': Seq2SeqDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                    trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
-                                    src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                    pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-            'valid': Seq2SeqDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                    trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                    src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                    pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-        }
+        CustomDataset = Seq2SeqDataset
+        train_src_img_path = None
+        valid_src_img_path = None
+        train_trg_list = train_trg_input_ids
     elif args.task in ['classification']:
-        dataset_dict = {
-            'train': Seq2LabelDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                      trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
-                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-            'valid': Seq2LabelDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                      trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-        }
+        CustomDataset = Seq2LabelDataset
+        train_trg_attention_mask = None
+        valid_trg_attention_mask = None
     elif args.task in ['multi-modal_classification']:
         image_transform = A.Compose([
                 A.Resize(224, 224),
                 A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0, always_apply=False, p=1.0),
                 ToTensorV2(),
             ])
+        CustomDataset = MutlimodalClassificationDataset
+        train_trg_attention_mask = None
+        valid_trg_attention_mask = None
+
+    dataset_dict = {
+        'train': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                trg_list=train_trg_list, trg_att_list=train_trg_attention_mask,
+                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+        'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
+                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+    }
+    elif args.task in ['classification']:
         dataset_dict = {
-            'train': MutlimodalClassificationDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+            'train': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
+                                      trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
+                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+            'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+                                      trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
+                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+        }
+    elif args.task in ['multi-modal_classification']:
+        dataset_dict = {
+            'train': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
                                                      src_img_path=train_src_img_path, trg_list=train_trg_list,
                                                      src_max_len=args.src_max_len,
                                                      image_transform=image_transform),
-            'valid': MutlimodalClassificationDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
+            'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
                                                      src_img_path=valid_src_img_path, trg_list=valid_trg_list,
                                                      src_max_len=args.src_max_len,
                                                      image_transform=image_transform),
@@ -417,6 +430,6 @@ def seq2seq_training(args):
 
     # 3) Print results
     write_log(logger, f'Best Epoch: {best_epoch}')
-    write_log(logger, f'Best Loss: {round(best_val_loss, 2)}')
+    write_log(logger, f'Best Loss: {round(best_val_loss.item(), 2)}')
     if args.use_tensorboard:
-        tb_writer.add_text('VALID/Best Epoch&Loss', f'Best Epoch: {best_epoch}\nBest Loss: {round(best_val_loss, 4)}')
+        tb_writer.add_text('VALID/Best Epoch&Loss', f'Best Epoch: {best_epoch}\nBest Loss: {round(best_val_loss.item(), 4)}')

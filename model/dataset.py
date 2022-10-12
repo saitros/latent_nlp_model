@@ -4,8 +4,16 @@ from torch.utils.data.dataset import Dataset
 import albumentations as A
 from skimage import io
 
+# class CustomDataset(Dataset):
+#     def __init__(self, task: str, src_list: list, src_att_list: list, src_img_path: list = None,
+#                  trg_list: list = None, trg_att_list: list = None,
+#                  min_len: int = 4, src_max_len: int = 300, 
+#                  pad_idx: int = 0, eos_idx: int = 2,
+#                  image_transform: A.core.composition.Compose = None):
+
 class Seq2SeqDataset(Dataset):
-    def __init__(self, src_list, src_att_list, trg_list, trg_att_list,
+    def __init__(self, src_list: list, src_att_list: list, src_img_path: list = None,
+                 trg_list: list = None, trg_att_list: list = None,
                  src_max_len: int = 300, trg_max_len: int = 360,
                  pad_idx: int = 0, eos_idx: int = 2):
         # Stop index list
@@ -31,8 +39,11 @@ class Seq2SeqDataset(Dataset):
         return self.num_data
 
 class Seq2LabelDataset(Dataset):
-    def __init__(self, src_list, src_att_list, trg_list,
-                 min_len: int = 4, src_max_len: int = 300):
+    def __init__(self, src_list: list, src_att_list: list, src_img_path: list = None,
+                 trg_list: list = None, trg_att_list: list = None,
+                 min_len: int = 4, src_max_len: int = 300, 
+                 pad_idx: int = 0, eos_idx: int = 2,
+                 image_transform: A.core.composition.Compose = None):
         self.tensor_list = []
         for src, src_att, trg in zip(src_list, src_att_list, trg_list):
             if min_len <= len(src) <= src_max_len:
@@ -54,8 +65,11 @@ class Seq2LabelDataset(Dataset):
         return self.num_data
 
 class MutlimodalClassificationDataset(Dataset):
-    def __init__(self, src_list: list, src_att_list: list, src_img_path: list, trg_list: list = None,
-                 min_len: int = 4, src_max_len: int = 300, image_transform: A.core.composition.Compose = None):
+    def __init__(self, src_list: list, src_att_list: list, src_img_path: list = None, 
+                 trg_list: list = None, trg_att_list: list = None,
+                 min_len: int = 4, src_max_len: int = 300, 
+                 pad_idx: int = 0, eos_idx: int = 2,
+                 image_transform: A.core.composition.Compose = None):
         self.tensor_list = []
         self.image_transform = image_transform
         # For Inference
