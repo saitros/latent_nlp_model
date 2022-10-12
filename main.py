@@ -103,6 +103,10 @@ if __name__=='__main__':
     # Topic-modeling setting
     parser.add_argument('--n_components', default=10, type=int,
                         help='')
+    parser.add_argument('--topic_epochs', default=10, type=int,
+                        help='')
+    parser.add_argument('--topic_modeling_model', default='ctm', type=str,
+                        help='')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[
