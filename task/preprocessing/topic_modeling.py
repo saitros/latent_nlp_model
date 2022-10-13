@@ -4,6 +4,7 @@ import time
 import nltk
 import torch
 import logging
+import numpy as np
 import pandas as pd
 import umap.umap_ as umap
 from sklearn.mixture import GaussianMixture
@@ -87,14 +88,14 @@ def topic_modeling(args):
         model = SentenceTransformer('distilbert-base-nli-mean-tokens')
         embeddings = model.encode(src_list['train'], show_progress_bar=True)
 
-        write_log(logger, 'Start S-BERT...')
+        write_log(logger, 'Start Concatenate...')
 
-        embeddings_cat = np.concatenate((embeddings, bow_array), axis=1)
+        embeddings_cat = np.concatenate((embeddings, bow_array * args.umap_bow_lambda), axis=1)
 
         write_log(logger, 'Start UMAP...')
 
-        umap_embeddings = umap.UMAP(n_neighbors=15, 
-                                    n_components=5, 
+        umap_embeddings = umap.UMAP(n_neighbors=args.umap_n_neighbors, 
+                                    n_components=args.umap_n_components, 
                                     metric='cosine').fit_transform(embeddings)
 
         write_log(logger, 'Start GMM...')
@@ -103,7 +104,7 @@ def topic_modeling(args):
         gm.fit(umap_embeddings)
 
         docs_df = pd.DataFrame(src_list['train'], columns=["Doc"])
-        docs_df['Topic'] = a
+        docs_df['Topic'] = gm.predict(umap_embeddings)
         docs_df['Doc_ID'] = range(len(docs_df))
         docs_per_topic = docs_df.groupby(['Topic'], as_index = False).agg({'Doc': ' '.join})
 
@@ -141,7 +142,12 @@ def topic_modeling(args):
         top_n_words = extract_top_n_words_per_topic(tf_idf, count, docs_per_topic, n=20)
         topic_sizes = extract_topic_sizes(docs_df)
 
+        topic_dict = dict()
         for i in range(args.n_components):
             write_log(logger, top_n_words[i][:10])
+            topic_dict[f'{i}'] = list()
+            for q in top_n_words[i][:10]:
+                topic_dict[f'{i}'].append(q[0])
 
-        # pd.DataFrame(topic_keywords_list).to_csv(f'./preprocessed/{args.n_components}_{args.topic_epochs}.csv', index=False)
+        pd.DataFrame(topic_dict).to_csv(f'./preprocessed/bertopic_gmm_{args.n_components}_{args.topic_epochs}.csv', index=False)
+        docs_df.to_csv(f'./preprocessed/bertopic_gmm_results_{args.n_components}_{args.topic_epochs}.csv', index=False)

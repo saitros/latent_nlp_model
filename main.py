@@ -101,11 +101,17 @@ if __name__=='__main__':
     parser.add_argument('--src_trg_identical', default=False, type=str2bool,
                         help='Use source and target tokenizer same; Default is False')
     # Topic-modeling setting
+    parser.add_argument('--topic_modeling_model', default='ctm', type=str,
+                        help='')
     parser.add_argument('--n_components', default=10, type=int,
                         help='')
     parser.add_argument('--topic_epochs', default=10, type=int,
                         help='')
-    parser.add_argument('--topic_modeling_model', default='ctm', type=str,
+    parser.add_argument('--umap_n_neighbors', default=15, type=int,
+                        help='')
+    parser.add_argument('--umap_n_components', default=5, type=int,
+                        help='')
+    parser.add_argument('--umap_bow_lambda', default=1, type=float,
                         help='')
     # Model setting
     # 0) Model selection
