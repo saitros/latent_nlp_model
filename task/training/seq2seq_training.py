@@ -164,10 +164,12 @@ def seq2seq_training(args):
         train_src_img_path = None
         valid_src_img_path = None
         train_trg_list = train_trg_input_ids
+        image_transform = None
     elif args.task in ['classification']:
         CustomDataset = Seq2LabelDataset
         train_trg_attention_mask = None
         valid_trg_attention_mask = None
+        image_transform = None
     elif args.task in ['multi-modal_classification']:
         image_transform = A.Compose([
                 A.Resize(224, 224),
@@ -180,37 +182,18 @@ def seq2seq_training(args):
 
     dataset_dict = {
         'train': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                trg_list=train_trg_list, trg_att_list=train_trg_attention_mask,
-                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+                               src_img_path=train_src_img_path,
+                               trg_list=train_trg_list, trg_att_list=train_trg_attention_mask,
+                               src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                               pad_idx=model.pad_idx, eos_idx=model.eos_idx,
+                               image_transform=image_transform),
         'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                pad_idx=model.pad_idx, eos_idx=model.eos_idx),
+                               src_img_path=valid_src_img_path,
+                               trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
+                               src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
+                               pad_idx=model.pad_idx, eos_idx=model.eos_idx,
+                               image_transform=image_transform),
     }
-    elif args.task in ['classification']:
-        dataset_dict = {
-            'train': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                      trg_list=train_trg_input_ids, trg_att_list=train_trg_attention_mask,
-                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-            'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                      trg_list=valid_trg_input_ids, trg_att_list=valid_trg_attention_mask,
-                                      src_max_len=args.src_max_len, trg_max_len=args.trg_max_len,
-                                      pad_idx=model.pad_idx, eos_idx=model.eos_idx),
-        }
-    elif args.task in ['multi-modal_classification']:
-        dataset_dict = {
-            'train': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask,
-                                                     src_img_path=train_src_img_path, trg_list=train_trg_list,
-                                                     src_max_len=args.src_max_len,
-                                                     image_transform=image_transform),
-            'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
-                                                     src_img_path=valid_src_img_path, trg_list=valid_trg_list,
-                                                     src_max_len=args.src_max_len,
-                                                     image_transform=image_transform),
-        }
-
     dataloader_dict = {
         'train': DataLoader(dataset_dict['train'], drop_last=True,
                             batch_size=args.batch_size, shuffle=True, pin_memory=True,
