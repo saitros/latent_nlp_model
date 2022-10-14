@@ -2,6 +2,49 @@ import os
 import torch
 from torch.nn import functional as F
 
+def input_to_device(args, batch_iter):
+    # Input, output setting
+    if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
+        src_sequence = batch_iter[0]
+        src_att = batch_iter[1]
+        trg_sequence = batch_iter[2]
+        trg_att = batch_iter[3]
+        src_img = None
+        trg_label = None
+
+        src_sequence = src_sequence.to(device, non_blocking=True)
+        src_att = src_att.to(device, non_blocking=True)
+        trg_sequence = trg_sequence.to(device, non_blocking=True)
+        trg_att = trg_att.to(device, non_blocking=True)
+
+    elif args.task in ['classification']:
+        src_sequence = batch_iter[0]
+        src_att = batch_iter[1]
+        trg_label = batch_iter[2]
+        src_img = None
+        trg_sequence = None
+        trg_att = None
+
+        src_sequence = src_sequence.to(device, non_blocking=True)
+        src_att = src_att.to(device, non_blocking=True)
+        trg_label = trg_label.to(device, non_blocking=True)
+
+    elif args.task in ['multi-modal_classification']:
+        src_sequence = batch_iter[0]
+        src_att = batch_iter[1]
+        src_img = batch_iter[2]
+        trg_label = batch_iter[3]
+        trg_sequence = None
+        trg_att = None
+
+        src_sequence = src_sequence.to(device, non_blocking=True)
+        src_att = src_att.to(device, non_blocking=True)
+        src_img = src_img.to(device, non_blocking=True)
+        trg_label = trg_label.to(device, non_blocking=True)
+
+    return src_sequence, src_att, src_img, trg_label, trg_sequence, trg_att
+
+
 def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
     ''' Calculate cross entropy loss, apply label smoothing if needed. '''
     gold = gold.contiguous().view(-1)

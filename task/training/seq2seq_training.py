@@ -24,7 +24,7 @@ from model.custom_plm.bart import custom_Bart
 from model.custom_plm.bert import custom_Bert
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
-from task.utils import label_smoothing_loss, model_save_name
+from task.utils import input_to_device, label_smoothing_loss, model_save_name
 
 def seq2seq_training(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -250,50 +250,15 @@ def seq2seq_training(args):
                 optimizer.zero_grad(set_to_none=True)
 
                 # Input, output setting
+                src_sequence, src_att, src_img, trg_label, trg_sequence, trg_att = input_to_device(args, batch_iter)
+
+                # Output pre-processing
                 if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
-                    src_sequence = batch_iter[0]
-                    src_att = batch_iter[1]
-                    trg_sequence = batch_iter[2]
-                    trg_att = batch_iter[3]
-                    src_img = None
-                    trg_label = None
-
-                    src_sequence = src_sequence.to(device, non_blocking=True)
-                    src_att = src_att.to(device, non_blocking=True)
-                    trg_sequence = trg_sequence.to(device, non_blocking=True)
-                    trg_att = trg_att.to(device, non_blocking=True)
-
-                    # Output pre-processing
                     trg_sequence_gold = trg_sequence[:, 1:]
                     non_pad = trg_sequence_gold != model.pad_idx
                     trg_sequence_gold = trg_sequence_gold[non_pad].contiguous().view(-1)
-
-                elif args.task in ['classification']:
-                    src_sequence = batch_iter[0]
-                    src_att = batch_iter[1]
-                    trg_label = batch_iter[2]
-                    src_img = None
-                    trg_sequence = None
-                    trg_att = None
+                else:
                     non_pad = None
-
-                    src_sequence = src_sequence.to(device, non_blocking=True)
-                    src_att = src_att.to(device, non_blocking=True)
-                    trg_label = trg_label.to(device, non_blocking=True)
-
-                elif args.task in ['multi-modal_classification']:
-                    src_sequence = batch_iter[0]
-                    src_att = batch_iter[1]
-                    src_img = batch_iter[2]
-                    trg_label = batch_iter[3]
-                    trg_sequence = None
-                    trg_att = None
-                    non_pad = None
-
-                    src_sequence = src_sequence.to(device, non_blocking=True)
-                    src_att = src_att.to(device, non_blocking=True)
-                    src_img = src_img.to(device, non_blocking=True)
-                    trg_label = trg_label.to(device, non_blocking=True)
 
                 # Train
                 if phase == 'train':
@@ -307,7 +272,7 @@ def seq2seq_training(args):
                             loss = label_smoothing_loss(predicted, trg_sequence_gold, 
                                                         trg_pad_idx=model.pad_idx,
                                                         smoothing_eps=args.label_smoothing_eps)
-                        elif 'classification' in args.task:
+                        elif 'classification' in args.task: # Need to refactoring
                             loss = F.cross_entropy(predicted, trg_label)
                         total_loss = loss + dist_loss
 
