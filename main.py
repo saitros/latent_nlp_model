@@ -180,8 +180,8 @@ if __name__=='__main__':
     # Training setting
     parser.add_argument('--min_len', default=4, type=int, 
                         help="Sentences's minimum length; Default is 4")
-    parser.add_argument('--num_epochs', default=100, type=int, 
-                        help='Training epochs; Default is 100')
+    parser.add_argument('--num_epochs', default=30, type=int, 
+                        help='Training epochs; Default is 30')
     parser.add_argument('--num_workers', default=8, type=int, 
                         help='Num CPU Workers; Default is 8')
     parser.add_argument('--batch_size', default=16, type=int,    

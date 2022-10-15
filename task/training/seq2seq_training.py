@@ -250,7 +250,7 @@ def seq2seq_training(args):
                 optimizer.zero_grad(set_to_none=True)
 
                 # Input, output setting
-                src_sequence, src_att, src_img, trg_label, trg_sequence, trg_att = input_to_device(args, batch_iter)
+                src_sequence, src_att, src_img, trg_label, trg_sequence, trg_att = input_to_device(args, batch_iter, device)
 
                 # Output pre-processing
                 if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:

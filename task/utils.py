@@ -2,7 +2,7 @@ import os
 import torch
 from torch.nn import functional as F
 
-def input_to_device(args, batch_iter):
+def input_to_device(args, batch_iter, device):
     # Input, output setting
     if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
         src_sequence = batch_iter[0]

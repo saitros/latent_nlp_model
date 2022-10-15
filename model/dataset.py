@@ -15,7 +15,8 @@ class Seq2SeqDataset(Dataset):
     def __init__(self, src_list: list, src_att_list: list, src_img_path: list = None,
                  trg_list: list = None, trg_att_list: list = None,
                  src_max_len: int = 300, trg_max_len: int = 360,
-                 pad_idx: int = 0, eos_idx: int = 2):
+                 pad_idx: int = 0, eos_idx: int = 2,
+                 image_transform: A.core.composition.Compose = None):
         # Stop index list
         stop_ix_list = [pad_idx, eos_idx]
         self.tensor_list = []
